@@ -1,98 +1,216 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const features = [
+    {
+      id: 1,
+      title: "Leopard Health Tracker",
+      description: "Upload images and assess leopard health conditions",
+      route: "/leoTrack",
+      icon: "🐆",
+      gradient: ["#059669", "#047857"],
+    },
+    {
+      id: 2,
+      title: "Footprint Identification",
+      description: "Identify animals using footprints and ground signs",
+      route: "/footPrint",
+      icon: "🐾",
+      gradient: ["#0891b2", "#0e7490"],
+    },
+    {
+      id: 3,
+      title: "Sound Track Analysis",
+      description: "Wildlife detection using acoustic signals",
+      route: "/SoundTrack",
+      icon: "🎵",
+      gradient: ["#7c3aed", "#6d28d9"],
+    },
+    {
+      id: 4,
+      title: "Thermal View",
+      description: "Thermal-based wildlife condition monitoring",
+      route: "/ThermalView",
+      icon: "🌡️",
+      gradient: ["#dc2626", "#b91c1c"],
+    },
+  ];
+
+  return (
+    <View style={styles.container}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header Section */}
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoIcon}>🦁</Text>
+          </View>
+          <Text style={styles.title}>WildSense</Text>
+          <Text style={styles.subtitle}>
+            Advanced Wildlife Health & Monitoring Platform
+          </Text>
+        </View>
+
+        {/* Features Grid */}
+        <View style={styles.featuresContainer}>
+          <Text style={styles.sectionTitle}>Select a Feature</Text>
+          
+          {features.map((feature) => (
+            <TouchableOpacity
+              key={feature.id}
+              style={styles.card}
+              onPress={() => router.push(feature.route)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.cardContent}>
+                <View style={styles.iconContainer}>
+                  <Text style={styles.icon}>{feature.icon}</Text>
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.cardTitle}>{feature.title}</Text>
+                  <Text style={styles.cardDesc}>{feature.description}</Text>
+                </View>
+                <View style={styles.arrowContainer}>
+                  <Text style={styles.arrow}>→</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Footer Info */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Powered by AI-driven wildlife conservation technology
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#0a0f1e",
   },
-  stepContainer: {
-    gap: 8,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  logoContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#1a2333",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: "#2a3547",
+  },
+  logoIcon: {
+    fontSize: 36,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: "800",
+    color: "#ffffff",
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  subtitle: {
+    fontSize: 15,
+    color: "#8b9bb4",
+    textAlign: "center",
+    lineHeight: 22,
+    paddingHorizontal: 20,
+  },
+  featuresContainer: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6b7a94",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 16,
+    marginLeft: 4,
+  },
+  card: {
+    backgroundColor: "#151d2e",
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#1f2937",
+    overflow: "hidden",
+  },
+  cardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+  },
+  iconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: "#1a2333",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  icon: {
+    fontSize: 26,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#ffffff",
+    marginBottom: 4,
+    letterSpacing: -0.3,
+  },
+  cardDesc: {
+    fontSize: 14,
+    color: "#7f8ea3",
+    lineHeight: 20,
+  },
+  arrowContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#1a2333",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 12,
+  },
+  arrow: {
+    fontSize: 18,
+    color: "#6b7a94",
+    fontWeight: "600",
+  },
+  footer: {
+    alignItems: "center",
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#1f2937",
+  },
+  footerText: {
+    fontSize: 12,
+    color: "#5a6b84",
+    textAlign: "center",
   },
 });
