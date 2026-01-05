@@ -1,14 +1,39 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+
+const BACKEND_URL = "http://192.168.206.199:8000";
+
+type Assessment = {
+  alert_id: string;
+  level: string;
+  score: number;
+};
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { level, score } = useLocalSearchParams<{
-    level?: string;
-    score?: string;
-  }>();
+  const { alertId } = useLocalSearchParams<{ alertId?: string }>();
 
-  const getColorByLevel = () => {
+  const [loading, setLoading] = useState(true);
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
+
+  useEffect(() => {
+    if (!alertId) return;
+
+    fetch(`${BACKEND_URL}/assessment/${alertId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data || data.error) {
+          setAssessment(null);
+        } else {
+          setAssessment(data);
+        }
+      })
+      .catch(() => setAssessment(null))
+      .finally(() => setLoading(false));
+  }, [alertId]);
+
+  const getColorByLevel = (level?: string) => {
     switch (level) {
       case "Low":
         return "#22c55e";
@@ -23,22 +48,54 @@ export default function ResultScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#38bdf8" />
+        <Text style={styles.loadingText}>Loading assessment...</Text>
+      </View>
+    );
+  }
+
+  if (!assessment) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.icon}>⚠️</Text>
+        <Text style={styles.title}>No Assessment Found</Text>
+        <Text style={styles.subtitle}>
+          This sighting has not been assessed yet.
+        </Text>
+
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.primaryText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.icon}>📋</Text>
-
       <Text style={styles.title}>Assessment Result</Text>
 
       <View style={styles.card}>
         <Text style={styles.label}>Severity Level</Text>
-        <Text style={[styles.value, { color: getColorByLevel() }]}>
-          {level ?? "Unknown"}
+        <Text
+          style={[
+            styles.value,
+            { color: getColorByLevel(assessment.level) },
+          ]}
+        >
+          {assessment.level}
         </Text>
 
         <View style={styles.divider} />
 
         <Text style={styles.label}>Risk Score</Text>
-        <Text style={styles.score}>{score ?? "0"}%</Text>
+        <Text style={styles.score}>{assessment.score}%</Text>
       </View>
 
       <TouchableOpacity
@@ -46,13 +103,6 @@ export default function ResultScreen() {
         onPress={() => router.replace("/leoTrack")}
       >
         <Text style={styles.primaryText}>New Assessment</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => router.back()}
-      >
-        <Text style={styles.secondaryText}>Go Back</Text>
       </TouchableOpacity>
     </View>
   );
@@ -75,7 +125,18 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#f8fafc",
     textAlign: "center",
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#94a3b8",
+    textAlign: "center",
     marginBottom: 24,
+  },
+  loadingText: {
+    color: "#94a3b8",
+    marginTop: 12,
+    textAlign: "center",
   },
   card: {
     backgroundColor: "#0f172a",
@@ -112,21 +173,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#22c55e",
     padding: 14,
     borderRadius: 10,
-    marginBottom: 12,
   },
   primaryText: {
     textAlign: "center",
     color: "#022c22",
     fontWeight: "700",
-  },
-  secondaryButton: {
-    backgroundColor: "#1e293b",
-    padding: 14,
-    borderRadius: 10,
-  },
-  secondaryText: {
-    textAlign: "center",
-    color: "#e5e7eb",
-    fontWeight: "600",
   },
 });

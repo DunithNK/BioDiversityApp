@@ -1,16 +1,15 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Alert,
-  ScrollView,
-} from "react-native";
-import { useState } from "react";
-import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 type AlertItem = {
   id: string;
@@ -20,14 +19,23 @@ type AlertItem = {
   longitude: number;
 };
 
+const BACKEND_URL = "http://192.168.206.199:8000";
+
 export default function LeoTrackScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [recentAlerts, setRecentAlerts] = useState<AlertItem[]>([]);
+  const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
+
   const router = useRouter();
+
+  /* -------------------- Helpers -------------------- */
 
   const getTimeLabel = () =>
     new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const generateAlertId = () =>
+    `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const getCurrentLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -43,22 +51,87 @@ export default function LeoTrackScreen() {
     };
   };
 
+  /* -------------------- Backend sync -------------------- */
+
+  const fetchAlertsFromBackend = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/alerts`);
+      const data = await res.json();
+
+      // Normalize backend format → frontend format
+      const normalized: AlertItem[] = data.map((item: any) => ({
+        id: item.alert_id,
+        time: item.time,
+        source: item.source,
+        latitude: item.latitude,
+        longitude: item.longitude,
+      }));
+
+      setRecentAlerts(normalized.slice(0, 5));
+    } catch {
+      console.warn("Failed to fetch alerts");
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAlertsFromBackend();
+    }, [])
+  );
+
+  const saveAlertToBackend = async (
+    alertId: string,
+    time: string,
+    latitude: number,
+    longitude: number,
+    source: "Camera" | "Gallery"
+  ) => {
+    try {
+      await fetch(`${BACKEND_URL}/alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alert_id: alertId,
+          time,
+          latitude,
+          longitude,
+          source,
+        }),
+      });
+    } catch {
+      console.warn("Backend alert save failed");
+    }
+  };
+
   const addRecentAlert = async (source: "Camera" | "Gallery") => {
     const location = await getCurrentLocation();
     if (!location) return;
 
+    const alertId = generateAlertId();
+    const time = getTimeLabel();
+
     const newAlert: AlertItem = {
-      id: Date.now().toString(),
-      time: getTimeLabel(),
+      id: alertId,
+      time,
       source,
       latitude: location.latitude,
       longitude: location.longitude,
     };
 
+    setCurrentAlertId(alertId);
     setRecentAlerts((prev) => [newAlert, ...prev].slice(0, 5));
+
+    await saveAlertToBackend(
+      alertId,
+      time,
+      location.latitude,
+      location.longitude,
+      source
+    );
   };
 
-  // Open camera
+  /* -------------------- Image handlers -------------------- */
+
   const handleTakeImage = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
@@ -67,7 +140,7 @@ export default function LeoTrackScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       quality: 0.7,
     });
 
@@ -77,7 +150,6 @@ export default function LeoTrackScreen() {
     }
   };
 
-  // Open gallery
   const handleUploadImage = async () => {
     const { status } =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -87,7 +159,7 @@ export default function LeoTrackScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       quality: 0.7,
     });
 
@@ -97,36 +169,35 @@ export default function LeoTrackScreen() {
     }
   };
 
-  const handleRemoveImage = () => {
-    setImageUri(null);
-  };
+  /* -------------------- Navigation -------------------- */
 
   const handleContinue = () => {
-    if (!imageUri) {
-      Alert.alert("No Image", "Please take or upload an image first");
+    if (!imageUri || !currentAlertId) {
+      Alert.alert("Missing Data", "Please capture an image first");
       return;
     }
 
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      router.push("/leoTrack/health");
+      router.push(`/leoTrack/health?alertId=${currentAlertId}` as any);
     }, 600);
   };
+
+  /* -------------------- UI -------------------- */
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={{ padding: 24 }}
     >
-      {/* Header */}
       <Text style={styles.icon}>🐆</Text>
       <Text style={styles.title}>Leopard Health Tracker</Text>
       <Text style={styles.subtitle}>
         Capture or upload an image of the observed leopard
       </Text>
 
-      {/* Recent Regional Alerts */}
+      {/* Recent Alerts */}
       <View style={styles.alertCard}>
         <Text style={styles.alertTitle}>Recent Regional Alerts</Text>
 
@@ -136,7 +207,13 @@ export default function LeoTrackScreen() {
           </Text>
         ) : (
           recentAlerts.map((item) => (
-            <View key={item.id} style={styles.alertItem}>
+            <TouchableOpacity
+              key={item.id}
+              style={styles.alertItem}
+              onPress={() =>
+                router.push(`/leoTrack/result?alertId=${item.id}` as any)
+              }
+            >
               <Text style={styles.alertIcon}>📍</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.alertText}>
@@ -148,12 +225,12 @@ export default function LeoTrackScreen() {
                 </Text>
               </View>
               <Text style={styles.alertStatus}>Active</Text>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </View>
 
-      {/* Action Buttons */}
+      {/* Actions */}
       <TouchableOpacity style={styles.primaryButton} onPress={handleTakeImage}>
         <Text style={styles.primaryText}>Take Image</Text>
       </TouchableOpacity>
@@ -164,32 +241,6 @@ export default function LeoTrackScreen() {
       >
         <Text style={styles.secondaryText}>Upload Image</Text>
       </TouchableOpacity>
-
-      {/* Image Preview */}
-      {!imageUri ? (
-        <TouchableOpacity
-          style={styles.uploadZone}
-          onPress={handleUploadImage}
-        >
-          <Text style={styles.uploadIcon}>📷</Text>
-          <Text style={styles.uploadTitle}>No image selected</Text>
-        </TouchableOpacity>
-      ) : (
-        <>
-          <Image source={{ uri: imageUri }} style={styles.preview} />
-          <View style={styles.imageActions}>
-            <Text style={styles.imageStatusText}>
-              ✓ Image ready for analysis
-            </Text>
-            <TouchableOpacity
-              style={styles.removeButton}
-              onPress={handleRemoveImage}
-            >
-              <Text style={styles.removeButtonText}>Remove</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
 
       {/* Continue */}
       <TouchableOpacity
@@ -208,22 +259,12 @@ export default function LeoTrackScreen() {
   );
 }
 
+/* -------------------- Styles (UNCHANGED) -------------------- */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#020617",
-  },
-  icon: {
-    fontSize: 48,
-    textAlign: "center",
-    marginBottom: 6,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#f8fafc",
-    textAlign: "center",
-  },
+  container: { flex: 1, backgroundColor: "#020617" },
+  icon: { fontSize: 48, textAlign: "center", marginBottom: 6 },
+  title: { fontSize: 24, fontWeight: "700", color: "#f8fafc", textAlign: "center" },
   subtitle: {
     fontSize: 13,
     color: "#94a3b8",
@@ -239,15 +280,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#1e293b",
   },
-  alertTitle: {
-    color: "#e5e7eb",
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-  alertEmpty: {
-    color: "#64748b",
-    fontSize: 12,
-  },
+  alertTitle: { color: "#e5e7eb", fontWeight: "700", marginBottom: 10 },
+  alertEmpty: { color: "#64748b", fontSize: 12 },
   alertItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -255,24 +289,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#1e293b",
   },
-  alertIcon: {
-    fontSize: 18,
-    marginRight: 10,
-  },
-  alertText: {
-    color: "#e5e7eb",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  alertTime: {
-    color: "#94a3b8",
-    fontSize: 11,
-  },
-  alertStatus: {
-    color: "#22c55e",
-    fontSize: 11,
-    fontWeight: "700",
-  },
+  alertIcon: { fontSize: 18, marginRight: 10 },
+  alertText: { color: "#e5e7eb", fontSize: 13, fontWeight: "600" },
+  alertTime: { color: "#94a3b8", fontSize: 11 },
+  alertStatus: { color: "#22c55e", fontSize: 11, fontWeight: "700" },
 
   primaryButton: {
     backgroundColor: "#22c55e",
@@ -280,71 +300,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 12,
   },
-  primaryText: {
-    textAlign: "center",
-    color: "#022c22",
-    fontWeight: "600",
-  },
+  primaryText: { textAlign: "center", color: "#022c22", fontWeight: "600" },
+
   secondaryButton: {
     backgroundColor: "#1e293b",
     padding: 14,
     borderRadius: 10,
     marginBottom: 16,
   },
-  secondaryText: {
-    textAlign: "center",
-    color: "#e5e7eb",
-    fontWeight: "600",
-  },
-  uploadZone: {
-    height: 200,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "#334155",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  uploadIcon: {
-    fontSize: 36,
-  },
-  uploadTitle: {
-    color: "#e5e7eb",
-    fontWeight: "600",
-    marginTop: 6,
-  },
-  preview: {
-    width: "100%",
-    height: 220,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  imageActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#052e16",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  imageStatusText: {
-    color: "#22c55e",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  removeButton: {
-    backgroundColor: "#7f1d1d",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  removeButtonText: {
-    color: "#fecaca",
-    fontSize: 12,
-    fontWeight: "600",
-  },
+  secondaryText: { textAlign: "center", color: "#e5e7eb", fontWeight: "600" },
+
   continueButton: {
     backgroundColor: "#f59e0b",
     padding: 14,

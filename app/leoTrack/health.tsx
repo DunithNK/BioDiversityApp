@@ -4,12 +4,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
+  Alert,
 } from "react-native";
 import { useState } from "react";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+
+const BACKEND_URL = "http://192.168.206.199:8000";
 
 export default function HealthAssessment() {
   const router = useRouter();
+  const { alertId } = useLocalSearchParams<{ alertId: string }>();
+
+  const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     limping: false,
@@ -29,12 +35,36 @@ export default function HealthAssessment() {
     return "Critical";
   };
 
-  const submitAssessment = () => {
-  const level = getRiskLevel();
-  const href = `/leoTrack/result?level=${level}&score=${riskScore}`;
-  router.push(href as any);
-};
+  const submitAssessment = async () => {
+    if (!alertId) {
+      Alert.alert("Error", "Missing alert reference");
+      return;
+    }
 
+    setSubmitting(true);
+
+    const severity = getRiskLevel();
+
+    try {
+      await fetch(`${BACKEND_URL}/assessment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alert_id: alertId,
+          severity,
+          score: riskScore,
+          indicators: form,
+        }),
+      });
+    } catch {
+      Alert.alert("Warning", "Failed to save assessment to backend");
+    } finally {
+      setSubmitting(false);
+      router.push(
+        `/leoTrack/result?alertId=${alertId}` as any
+      );
+    }
+  };
 
   const renderSwitch = (label: string, key: keyof typeof form) => (
     <View style={styles.row}>
@@ -58,10 +88,16 @@ export default function HealthAssessment() {
       {renderSwitch("Near human settlement", "near_human_area")}
 
       <TouchableOpacity
-        style={styles.button}
+        style={[
+          styles.button,
+          submitting && { opacity: 0.6 },
+        ]}
         onPress={submitAssessment}
+        disabled={submitting}
       >
-        <Text style={styles.buttonText}>Submit Assessment</Text>
+        <Text style={styles.buttonText}>
+          {submitting ? "Saving..." : "Submit Assessment"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
