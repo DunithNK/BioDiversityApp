@@ -1,4 +1,5 @@
-# backend/storage.py
+ALERTS = {}
+ASSESSMENTS = {}
 
-alerts = {}
-assessments = {}
+alerts = ALERTS
+assessments = ASSESSMENTS

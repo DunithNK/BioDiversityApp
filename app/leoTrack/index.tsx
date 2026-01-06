@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
+  Animated,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,27 +13,42 @@ import {
 } from "react-native";
 
 type AlertItem = {
-  id: string;
-  time: string;
+  alert_id: string;
+  timestamp: string;
   source: "Camera" | "Gallery";
   latitude: number;
   longitude: number;
 };
 
-const BACKEND_URL = "http://192.168.206.199:8000";
+const BACKEND_URL = "http://172.20.10.13:8000";
 
 export default function LeoTrackScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [recentAlerts, setRecentAlerts] = useState<AlertItem[]>([]);
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(30));
 
   const router = useRouter();
 
-  /* -------------------- Helpers -------------------- */
+  /* -------------------- Animations -------------------- */
+  useState(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  });
 
-  const getTimeLabel = () =>
-    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  /* -------------------- Helpers -------------------- */
 
   const generateAlertId = () =>
     `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -44,10 +60,10 @@ export default function LeoTrackScreen() {
       return null;
     }
 
-    const location = await Location.getCurrentPositionAsync({});
+    const loc = await Location.getCurrentPositionAsync({});
     return {
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
+      latitude: loc.coords.latitude,
+      longitude: loc.coords.longitude,
     };
   };
 
@@ -57,17 +73,7 @@ export default function LeoTrackScreen() {
     try {
       const res = await fetch(`${BACKEND_URL}/alerts`);
       const data = await res.json();
-
-      // Normalize backend format → frontend format
-      const normalized: AlertItem[] = data.map((item: any) => ({
-        id: item.alert_id,
-        time: item.time,
-        source: item.source,
-        latitude: item.latitude,
-        longitude: item.longitude,
-      }));
-
-      setRecentAlerts(normalized.slice(0, 5));
+      setRecentAlerts(data.slice(0, 4));
     } catch {
       console.warn("Failed to fetch alerts");
     }
@@ -80,10 +86,8 @@ export default function LeoTrackScreen() {
   );
 
   const saveAlertToBackend = async (
-    alertId: string,
-    time: string,
-    latitude: number,
-    longitude: number,
+    alert_id: string,
+    coords: { latitude: number; longitude: number },
     source: "Camera" | "Gallery"
   ) => {
     try {
@@ -91,10 +95,10 @@ export default function LeoTrackScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          alert_id: alertId,
-          time,
-          latitude,
-          longitude,
+          alert_id,
+          timestamp: new Date().toISOString(),
+          latitude: coords.latitude,
+          longitude: coords.longitude,
           source,
         }),
       });
@@ -104,30 +108,14 @@ export default function LeoTrackScreen() {
   };
 
   const addRecentAlert = async (source: "Camera" | "Gallery") => {
-    const location = await getCurrentLocation();
-    if (!location) return;
+    const coords = await getCurrentLocation();
+    if (!coords) return;
 
-    const alertId = generateAlertId();
-    const time = getTimeLabel();
+    const alert_id = generateAlertId();
+    setCurrentAlertId(alert_id);
 
-    const newAlert: AlertItem = {
-      id: alertId,
-      time,
-      source,
-      latitude: location.latitude,
-      longitude: location.longitude,
-    };
-
-    setCurrentAlertId(alertId);
-    setRecentAlerts((prev) => [newAlert, ...prev].slice(0, 5));
-
-    await saveAlertToBackend(
-      alertId,
-      time,
-      location.latitude,
-      location.longitude,
-      source
-    );
+    await saveAlertToBackend(alert_id, coords, source);
+    fetchAlertsFromBackend();
   };
 
   /* -------------------- Image handlers -------------------- */
@@ -151,7 +139,7 @@ export default function LeoTrackScreen() {
   };
 
   const handleUploadImage = async () => {
-    const { status } =
+    const { status} =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission required", "Gallery access is required");
@@ -187,137 +175,509 @@ export default function LeoTrackScreen() {
   /* -------------------- UI -------------------- */
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ padding: 24 }}
-    >
-      <Text style={styles.icon}>🐆</Text>
-      <Text style={styles.title}>Leopard Health Tracker</Text>
-      <Text style={styles.subtitle}>
-        Capture or upload an image of the observed leopard
-      </Text>
-
-      {/* Recent Alerts */}
-      <View style={styles.alertCard}>
-        <Text style={styles.alertTitle}>Recent Regional Alerts</Text>
-
-        {recentAlerts.length === 0 ? (
-          <Text style={styles.alertEmpty}>
-            No recent leopard sightings recorded
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header Section */}
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={styles.iconContainer}>
+            <View style={styles.iconCircle}>
+              <Text style={styles.icon}>🐆</Text>
+            </View>
+          </View>
+          <Text style={styles.title}>Leopard Health Tracker</Text>
+          <Text style={styles.subtitle}>
+            Capture or upload an image of the observed leopard
           </Text>
-        ) : (
-          recentAlerts.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.alertItem}
-              onPress={() =>
-                router.push(`/leoTrack/result?alertId=${item.id}` as any)
-              }
-            >
-              <Text style={styles.alertIcon}>📍</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.alertText}>
-                  Leopard identified via {item.source}
-                </Text>
-                <Text style={styles.alertTime}>
-                  {item.time} • Lat {item.latitude.toFixed(4)}, Lon{" "}
-                  {item.longitude.toFixed(4)}
+
+          {/* Status Badge */}
+          {imageUri && (
+            <View style={styles.statusBadge}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>Image Captured</Text>
+            </View>
+          )}
+        </Animated.View>
+
+        {/* Recent Alerts Card */}
+        <Animated.View
+          style={[
+            styles.alertCard,
+            {
+              opacity: fadeAnim,
+            },
+          ]}
+        >
+          <View style={styles.alertHeader}>
+            <Text style={styles.alertTitle}>📍 Recent Regional Alerts</Text>
+            <View style={styles.alertBadge}>
+              <Text style={styles.alertBadgeText}>{recentAlerts.length}</Text>
+            </View>
+          </View>
+
+          {recentAlerts.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <Text style={styles.alertEmpty}>
+                No recent leopard sightings recorded
+              </Text>
+            </View>
+          ) : (
+            <>
+              {recentAlerts.map((item, index) => (
+                <TouchableOpacity
+                  key={item.alert_id}
+                  style={[
+                    styles.alertItem,
+                    index === recentAlerts.length - 1 && styles.alertItemLast,
+                  ]}
+                  onPress={() =>
+                    router.push(`/leoTrack/result?alertId=${item.alert_id}` as any)
+                  }
+                  activeOpacity={0.85}
+                >
+                  <View
+                    style={[
+                      styles.alertIconContainer,
+                      { backgroundColor: item.source === "Camera" ? "#1A3D2E" : "#1A2E3D" },
+                    ]}
+                  >
+                    <Text style={styles.alertIconEmoji}>
+                      {item.source === "Camera" ? "📷" : "🖼️"}
+                    </Text>
+                  </View>
+                  <View style={styles.alertContent}>
+                    <Text style={styles.alertText}>
+                      Leopard identified via {item.source}
+                    </Text>
+                    <Text style={styles.alertTime}>
+                      {new Date(item.timestamp).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                    <Text style={styles.alertCoords}>
+                      {item.latitude.toFixed(4)}°N, {item.longitude.toFixed(4)}°E
+                    </Text>
+                  </View>
+                  <View style={styles.alertStatusContainer}>
+                    <View style={styles.alertStatusDot} />
+                    <Text style={styles.alertStatus}>Active</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => router.push("/leoTrack/history")}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.viewAllText}>View Complete History</Text>
+                <Text style={styles.viewAllArrow}>→</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </Animated.View>
+
+        {/* Action Buttons */}
+        <Animated.View
+          style={[
+            styles.actionsContainer,
+            {
+              opacity: fadeAnim,
+            },
+          ]}
+        >
+          <Text style={styles.actionsLabel}>Capture Method</Text>
+          
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleTakeImage}
+            activeOpacity={0.85}
+          >
+            <View style={styles.buttonContent}>
+              <View style={styles.buttonIconContainer}>
+                <Text style={styles.buttonIcon}>📷</Text>
+              </View>
+              <View style={styles.buttonTextContainer}>
+                <Text style={styles.primaryText}>Take Image</Text>
+                <Text style={styles.buttonSubtext}>Use camera to capture</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleUploadImage}
+            activeOpacity={0.85}
+          >
+            <View style={styles.buttonContent}>
+              <View style={styles.buttonIconContainer}>
+                <Text style={styles.buttonIcon}>🖼️</Text>
+              </View>
+              <View style={styles.buttonTextContainer}>
+                <Text style={styles.secondaryText}>Upload Image</Text>
+                <Text style={styles.buttonSubtextSecondary}>
+                  Select from gallery
                 </Text>
               </View>
-              <Text style={styles.alertStatus}>Active</Text>
-            </TouchableOpacity>
-          ))
-        )}
-      </View>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
 
-      {/* Actions */}
-      <TouchableOpacity style={styles.primaryButton} onPress={handleTakeImage}>
-        <Text style={styles.primaryText}>Take Image</Text>
-      </TouchableOpacity>
+        {/* Continue Button */}
+        <Animated.View
+          style={[
+            {
+              opacity: fadeAnim,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[
+              styles.continueButton,
+              (!imageUri || loading) && styles.continueButtonDisabled,
+            ]}
+            onPress={handleContinue}
+            disabled={!imageUri || loading}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.continueText}>
+              {loading ? "🔄 Analyzing..." : "Continue to Analysis →"}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
 
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={handleUploadImage}
-      >
-        <Text style={styles.secondaryText}>Upload Image</Text>
-      </TouchableOpacity>
-
-      {/* Continue */}
-      <TouchableOpacity
-        style={[
-          styles.continueButton,
-          (!imageUri || loading) && { opacity: 0.4 },
-        ]}
-        onPress={handleContinue}
-        disabled={!imageUri || loading}
-      >
-        <Text style={styles.continueText}>
-          {loading ? "Analyzing..." : "Continue"}
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Footer Info */}
+        <View style={styles.footer}>
+          <View style={styles.footerDivider} />
+          <Text style={styles.footerText}>
+            🔒 Secure image processing with AI-powered health assessment
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-/* -------------------- Styles (UNCHANGED) -------------------- */
+/* -------------------- Styles -------------------- */
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#020617" },
-  icon: { fontSize: 48, textAlign: "center", marginBottom: 6 },
-  title: { fontSize: 24, fontWeight: "700", color: "#f8fafc", textAlign: "center" },
-  subtitle: {
-    fontSize: 13,
-    color: "#94a3b8",
-    textAlign: "center",
-    marginBottom: 16,
+  container: {
+    flex: 1,
+    backgroundColor: "#0A1F17",
+  },
+  scrollContent: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
 
-  alertCard: {
-    backgroundColor: "#0f172a",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#1e293b",
+  // Header Section
+  header: {
+    alignItems: "center",
+    marginBottom: 28,
   },
-  alertTitle: { color: "#e5e7eb", fontWeight: "700", marginBottom: 10 },
-  alertEmpty: { color: "#64748b", fontSize: 12 },
+  iconContainer: {
+    marginBottom: 16,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#1A3D2E",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#2ECC71",
+  },
+  icon: {
+    fontSize: 40,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#8BC4A9",
+    textAlign: "center",
+    lineHeight: 20,
+    paddingHorizontal: 20,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1A3D2E",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#2ECC71",
+    marginTop: 16,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#2ECC71",
+    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 13,
+    color: "#2ECC71",
+    fontWeight: "600",
+  },
+
+  // Alert Card
+  alertCard: {
+    backgroundColor: "#0F2F23",
+    borderRadius: 18,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: "#1A3D2E",
+  },
+  alertHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  alertTitle: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
+    letterSpacing: -0.3,
+  },
+  alertBadge: {
+    backgroundColor: "#1A3D2E",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2ECC71",
+  },
+  alertBadgeText: {
+    color: "#2ECC71",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
+  emptyIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  alertEmpty: {
+    color: "#6B9F88",
+    fontSize: 13,
+    textAlign: "center",
+  },
   alertItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1e293b",
+    borderBottomColor: "#1A3D2E",
   },
-  alertIcon: { fontSize: 18, marginRight: 10 },
-  alertText: { color: "#e5e7eb", fontSize: 13, fontWeight: "600" },
-  alertTime: { color: "#94a3b8", fontSize: 11 },
-  alertStatus: { color: "#22c55e", fontSize: 11, fontWeight: "700" },
+  alertItemLast: {
+    borderBottomWidth: 0,
+  },
+  alertIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  alertIconEmoji: {
+    fontSize: 20,
+  },
+  alertContent: {
+    flex: 1,
+  },
+  alertText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  alertTime: {
+    color: "#8BC4A9",
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  alertCoords: {
+    color: "#6B9F88",
+    fontSize: 11,
+  },
+  alertStatusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1A3D2E",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2ECC71",
+  },
+  alertStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#2ECC71",
+    marginRight: 6,
+  },
+  alertStatus: {
+    color: "#2ECC71",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+    paddingVertical: 10,
+  },
+  viewAllText: {
+    color: "#3498DB",
+    fontWeight: "600",
+    fontSize: 14,
+    marginRight: 6,
+  },
+  viewAllArrow: {
+    color: "#3498DB",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
 
-  primaryButton: {
-    backgroundColor: "#22c55e",
-    padding: 14,
-    borderRadius: 10,
+  // Actions Section
+  actionsContainer: {
+    marginBottom: 20,
+  },
+  actionsLabel: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
     marginBottom: 12,
+    letterSpacing: -0.3,
   },
-  primaryText: { textAlign: "center", color: "#022c22", fontWeight: "600" },
-
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  buttonIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  buttonIcon: {
+    fontSize: 24,
+  },
+  buttonTextContainer: {
+    flex: 1,
+  },
+  primaryButton: {
+    backgroundColor: "#2ECC71",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "#3FDD81",
+  },
+  primaryText: {
+    color: "#022C22",
+    fontWeight: "700",
+    fontSize: 16,
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  buttonSubtext: {
+    color: "#1A5335",
+    fontSize: 12,
+    fontWeight: "500",
+  },
   secondaryButton: {
-    backgroundColor: "#1e293b",
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 16,
+    backgroundColor: "#0F2F23",
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#1A3D2E",
   },
-  secondaryText: { textAlign: "center", color: "#e5e7eb", fontWeight: "600" },
+  secondaryText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  buttonSubtextSecondary: {
+    color: "#8BC4A9",
+    fontSize: 12,
+    fontWeight: "500",
+  },
 
+  // Continue Button
   continueButton: {
-    backgroundColor: "#f59e0b",
-    padding: 14,
-    borderRadius: 10,
+    backgroundColor: "#F59E0B",
+    padding: 18,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#FBBF24",
+    marginBottom: 24,
+  },
+  continueButtonDisabled: {
+    opacity: 0.4,
   },
   continueText: {
     textAlign: "center",
-    color: "#451a03",
+    color: "#451A03",
     fontWeight: "700",
+    fontSize: 16,
+    letterSpacing: -0.2,
+  },
+
+  // Footer
+  footer: {
+    alignItems: "center",
+    paddingTop: 20,
+  },
+  footerDivider: {
+    width: "100%",
+    height: 1,
+    backgroundColor: "#1A3D2E",
+    marginBottom: 16,
+  },
+  footerText: {
+    fontSize: 12,
+    color: "#6B9F88",
+    textAlign: "center",
+    lineHeight: 18,
   },
 });
