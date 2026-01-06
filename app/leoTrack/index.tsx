@@ -1,7 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Animated,
@@ -27,13 +27,15 @@ export default function LeoTrackScreen() {
   const [loading, setLoading] = useState(false);
   const [recentAlerts, setRecentAlerts] = useState<AlertItem[]>([]);
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
+  
+  // Animation States
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
 
   const router = useRouter();
 
   /* -------------------- Animations -------------------- */
-  useState(() => {
+  useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -46,7 +48,7 @@ export default function LeoTrackScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  });
+  }, []);
 
   /* -------------------- Helpers -------------------- */
 
@@ -139,8 +141,7 @@ export default function LeoTrackScreen() {
   };
 
   const handleUploadImage = async () => {
-    const { status} =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission required", "Gallery access is required");
       return;
@@ -195,16 +196,16 @@ export default function LeoTrackScreen() {
               <Text style={styles.icon}>🐆</Text>
             </View>
           </View>
-          <Text style={styles.title}>Leopard Health Tracker</Text>
+          <Text style={styles.title}>Leopard Tracker</Text>
           <Text style={styles.subtitle}>
-            Capture or upload an image of the observed leopard
+            Capture or upload an image of the observed leopard for AI health assessment
           </Text>
 
           {/* Status Badge */}
           {imageUri && (
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Image Captured</Text>
+              <Text style={styles.statusText}>Image Ready for Analysis</Text>
             </View>
           )}
         </Animated.View>
@@ -213,9 +214,7 @@ export default function LeoTrackScreen() {
         <Animated.View
           style={[
             styles.alertCard,
-            {
-              opacity: fadeAnim,
-            },
+            { opacity: fadeAnim },
           ]}
         >
           <View style={styles.alertHeader}>
@@ -229,7 +228,7 @@ export default function LeoTrackScreen() {
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>🔍</Text>
               <Text style={styles.alertEmpty}>
-                No recent leopard sightings recorded
+                No recent sightings recorded in this area
               </Text>
             </View>
           ) : (
@@ -258,7 +257,7 @@ export default function LeoTrackScreen() {
                   </View>
                   <View style={styles.alertContent}>
                     <Text style={styles.alertText}>
-                      Leopard identified via {item.source}
+                      Leopard logged via {item.source}
                     </Text>
                     <Text style={styles.alertTime}>
                       {new Date(item.timestamp).toLocaleString("en-US", {
@@ -284,7 +283,7 @@ export default function LeoTrackScreen() {
                 onPress={() => router.push("/leoTrack/history")}
                 activeOpacity={0.85}
               >
-                <Text style={styles.viewAllText}>View Complete History</Text>
+                <Text style={styles.viewAllText}>View History</Text>
                 <Text style={styles.viewAllArrow}>→</Text>
               </TouchableOpacity>
             </>
@@ -292,14 +291,7 @@ export default function LeoTrackScreen() {
         </Animated.View>
 
         {/* Action Buttons */}
-        <Animated.View
-          style={[
-            styles.actionsContainer,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+        <Animated.View style={[{ opacity: fadeAnim }, styles.actionsContainer]}>
           <Text style={styles.actionsLabel}>Capture Method</Text>
           
           <TouchableOpacity
@@ -313,7 +305,7 @@ export default function LeoTrackScreen() {
               </View>
               <View style={styles.buttonTextContainer}>
                 <Text style={styles.primaryText}>Take Image</Text>
-                <Text style={styles.buttonSubtext}>Use camera to capture</Text>
+                <Text style={styles.buttonSubtext}>Use device camera</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -329,22 +321,14 @@ export default function LeoTrackScreen() {
               </View>
               <View style={styles.buttonTextContainer}>
                 <Text style={styles.secondaryText}>Upload Image</Text>
-                <Text style={styles.buttonSubtextSecondary}>
-                  Select from gallery
-                </Text>
+                <Text style={styles.buttonSubtextSecondary}>Select from gallery</Text>
               </View>
             </View>
           </TouchableOpacity>
         </Animated.View>
 
         {/* Continue Button */}
-        <Animated.View
-          style={[
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+        <Animated.View style={[{ opacity: fadeAnim }]}>
           <TouchableOpacity
             style={[
               styles.continueButton,
@@ -364,15 +348,43 @@ export default function LeoTrackScreen() {
         <View style={styles.footer}>
           <View style={styles.footerDivider} />
           <Text style={styles.footerText}>
-            🔒 Secure image processing with AI-powered health assessment
+            🔒 AI-Powered Health Assessment & Tracking
           </Text>
         </View>
       </ScrollView>
+
+      {/* FIXED FLOATING MAP BUTTON */}
+      <Animated.View
+        style={[
+          styles.floatingMapContainer,
+          {
+            opacity: fadeAnim,
+            transform: [
+              {
+                translateY: slideAnim.interpolate({
+                  inputRange: [0, 30],
+                  outputRange: [0, 100],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.floatingMapBtn}
+          onPress={() => router.push("/leoTrack/map")}
+          activeOpacity={0.9}
+        >
+          <View style={styles.mapIconCircle}>
+            <Text style={styles.mapIconEmoji}>🗺️</Text>
+          </View>
+          <Text style={styles.floatingMapText}>View Sightings Map</Text>
+          <View style={styles.mapPulse} />
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
-
-/* -------------------- Styles -------------------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -382,7 +394,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 120, // Extra padding for the floating button
   },
 
   // Header Section
@@ -464,7 +476,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
-    letterSpacing: -0.3,
   },
   alertBadge: {
     backgroundColor: "#1A3D2E",
@@ -521,12 +532,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 4,
-    letterSpacing: -0.2,
   },
   alertTime: {
     color: "#8BC4A9",
     fontSize: 12,
-    marginBottom: 2,
   },
   alertCoords: {
     color: "#6B9F88",
@@ -570,7 +579,6 @@ const styles = StyleSheet.create({
   viewAllArrow: {
     color: "#3498DB",
     fontSize: 16,
-    fontWeight: "bold",
   },
 
   // Actions Section
@@ -582,7 +590,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
     marginBottom: 12,
-    letterSpacing: -0.3,
   },
   buttonContent: {
     flexDirection: "row",
@@ -615,13 +622,10 @@ const styles = StyleSheet.create({
     color: "#022C22",
     fontWeight: "700",
     fontSize: 16,
-    marginBottom: 2,
-    letterSpacing: -0.2,
   },
   buttonSubtext: {
     color: "#1A5335",
     fontSize: 12,
-    fontWeight: "500",
   },
   secondaryButton: {
     backgroundColor: "#0F2F23",
@@ -634,13 +638,10 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
-    marginBottom: 2,
-    letterSpacing: -0.2,
   },
   buttonSubtextSecondary: {
     color: "#8BC4A9",
     fontSize: 12,
-    fontWeight: "500",
   },
 
   // Continue Button
@@ -660,13 +661,12 @@ const styles = StyleSheet.create({
     color: "#451A03",
     fontWeight: "700",
     fontSize: 16,
-    letterSpacing: -0.2,
   },
 
   // Footer
   footer: {
     alignItems: "center",
-    paddingTop: 20,
+    paddingTop: 10,
   },
   footerDivider: {
     width: "100%",
@@ -678,6 +678,55 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B9F88",
     textAlign: "center",
-    lineHeight: 18,
+  },
+
+  // Floating Map Button Styles
+  floatingMapContainer: {
+    position: "absolute",
+    bottom: 30,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 10,
+  },
+  floatingMapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1A3D2E",
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: "#2ECC71",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 15,
+  },
+  mapIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(46, 204, 113, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  mapIconEmoji: {
+    fontSize: 16,
+  },
+  floatingMapText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  mapPulse: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#2ECC71",
+    marginLeft: 10,
   },
 });
