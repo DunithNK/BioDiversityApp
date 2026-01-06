@@ -93,7 +93,7 @@ export default function HomeScreen() {
             <View style={[styles.ring, styles.ring2]} />
           </View>
 
-          <Text style={styles.title}>WildSense</Text>
+          <Text style={styles.title}>WildSense GalOya</Text>
           <Text style={styles.subtitle}>
             Advanced Wildlife Health & Monitoring Platform
           </Text>
