@@ -11,7 +11,7 @@ import {
 import { useState, useEffect } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
-const BACKEND_URL = "http://172.20.10.13:8000";
+const BACKEND_URL = "http://172.20.10.2:8000";
 
 export default function HealthAssessment() {
   const router = useRouter();

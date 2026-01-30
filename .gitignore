@@ -1,43 +1,109 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# ==================================================
+# General
+# ==================================================
 
-# dependencies
+.DS_Store
+Thumbs.db
+*.log
+
+# ==================================================
+# Node / Frontend
+# ==================================================
+
 node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
-# Expo
+# ==================================================
+# Expo / React Native
+# ==================================================
+
 .expo/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
-.kotlin/
-*.orig.*
+# Metro
+.metro-health-check*
+
+# Native build folders
+/android
+/ios
+
+# Android / iOS secrets
+*.keystore
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.orig.*
 
-# Metro
-.metro-health-check*
+# ==================================================
+# Environment variables
+# ==================================================
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
+.env
+.env.*
 .env*.local
 
-# typescript
+# ==================================================
+# TypeScript
+# ==================================================
+
 *.tsbuildinfo
 
-app-example
+# ==================================================
+# Python / Backend
+# ==================================================
 
-# generated native folders
-/ios
-/android
+# Virtual environments (NEVER commit)
+venv/
+.venv/
+backend/venv/
+backend/.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Python environment files
+pyvenv.cfg
+
+# ==================================================
+# Machine Learning / AI
+# ==================================================
+
+# Trained models & artifacts
+*.h5
+*.keras
+*.onnx
+*.pt
+*.pb
+*.tflite
+
+# TensorFlow cache
+.tf/
+.keras/
+
+# ==================================================
+# Backend runtime & misc
+# ==================================================
+
+backend/.env
+backend/logs/
+backend/tmp/
+
+# ==================================================
+# Optional / Examples
+# ==================================================
+
+app-example/

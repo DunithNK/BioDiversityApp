@@ -1,16 +1,16 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   Animated,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
 
-const BACKEND_URL = "http://172.20.10.13:8000";
+const BACKEND_URL = "http://172.20.10.2:8000";
 
 type Assessment = {
   alert_id: string;
@@ -87,7 +87,7 @@ export default function ResultScreen() {
               duration: 1000,
               useNativeDriver: true,
             }),
-          ])
+          ]),
         ).start();
       }
     }

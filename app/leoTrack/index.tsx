@@ -21,7 +21,7 @@ type AlertItem = {
   longitude: number;
 };
 
-  const BACKEND_URL = "http://172.20.10.13:8000";
+const BACKEND_URL = "http://172.20.10.2:8000";
 
 export default function LeoTrackScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -249,7 +249,7 @@ export default function LeoTrackScreen() {
                   <View
                     style={[
                       styles.alertIconContainer,
-                      { backgroundColor: item.source === "Camera" ? "#1A3D2E" : "#1A2E3D" },
+                      { backgroundColor: item.source === "Camera" ? "#E8F5E9" : "#E3F2FD" },
                     ]}
                   >
                     <Text style={styles.alertIconEmoji}>
@@ -390,12 +390,12 @@ export default function LeoTrackScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 120, // Extra padding for the floating button
+    paddingBottom: 120,
   },
 
   // Header Section
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5E9",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
@@ -422,14 +422,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     marginBottom: 8,
     textAlign: "center",
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#4A4A4A",
     textAlign: "center",
     lineHeight: 20,
     paddingHorizontal: 20,
@@ -437,11 +437,11 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5E9",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: "#2ECC71",
     marginTop: 16,
   },
@@ -454,18 +454,23 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    color: "#2ECC71",
-    fontWeight: "600",
+    color: "#1B5E20",
+    fontWeight: "700",
   },
 
   // Alert Card
   alertCard: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     borderRadius: 18,
     padding: 20,
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   alertHeader: {
     flexDirection: "row",
@@ -474,12 +479,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   alertTitle: {
-    color: "#FFFFFF",
+    color: "#1B5E20",
     fontWeight: "700",
     fontSize: 16,
   },
   alertBadge: {
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5E9",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -487,7 +492,7 @@ const styles = StyleSheet.create({
     borderColor: "#2ECC71",
   },
   alertBadgeText: {
-    color: "#2ECC71",
+    color: "#1B5E20",
     fontSize: 12,
     fontWeight: "700",
   },
@@ -500,7 +505,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   alertEmpty: {
-    color: "#6B9F88",
+    color: "#757575",
     fontSize: 13,
     textAlign: "center",
   },
@@ -509,7 +514,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1A3D2E",
+    borderBottomColor: "#E0E0E0",
   },
   alertItemLast: {
     borderBottomWidth: 0,
@@ -529,23 +534,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   alertText: {
-    color: "#FFFFFF",
+    color: "#212121",
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 4,
   },
   alertTime: {
-    color: "#8BC4A9",
+    color: "#616161",
     fontSize: 12,
   },
   alertCoords: {
-    color: "#6B9F88",
+    color: "#757575",
     fontSize: 11,
   },
   alertStatusContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5E9",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -560,7 +565,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   alertStatus: {
-    color: "#2ECC71",
+    color: "#1B5E20",
     fontSize: 11,
     fontWeight: "700",
   },
@@ -572,14 +577,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   viewAllText: {
-    color: "#3498DB",
-    fontWeight: "600",
+    color: "#2ECC71",
+    fontWeight: "700",
     fontSize: 14,
     marginRight: 6,
   },
   viewAllArrow: {
-    color: "#3498DB",
+    color: "#2ECC71",
     fontSize: 16,
+    fontWeight: "bold",
   },
 
   // Actions Section
@@ -589,7 +595,7 @@ const styles = StyleSheet.create({
   actionsLabel: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     marginBottom: 12,
   },
   buttonContent: {
@@ -600,7 +606,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
@@ -616,50 +622,58 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
-    borderWidth: 2,
-    borderColor: "#3FDD81",
+    borderWidth: 0,
+    shadowColor: "#2ECC71",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   primaryText: {
-    color: "#022C22",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  buttonSubtext: {
-    color: "#1A5335",
-    fontSize: 12,
-  },
-  secondaryButton: {
-    backgroundColor: "#0F2F23",
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#1A3D2E",
-  },
-  secondaryText: {
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
   },
+  buttonSubtext: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+  },
+  secondaryButton: {
+    backgroundColor: "#FAFAFA",
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+  },
+  secondaryText: {
+    color: "#212121",
+    fontWeight: "700",
+    fontSize: 16,
+  },
   buttonSubtextSecondary: {
-    color: "#8BC4A9",
+    color: "#757575",
     fontSize: 12,
   },
 
   // Continue Button
   continueButton: {
-    backgroundColor: "#F59E0B",
+    backgroundColor: "#2ECC71",
     padding: 18,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#FBBF24",
+    borderWidth: 0,
     marginBottom: 24,
+    shadowColor: "#2ECC71",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   continueButtonDisabled: {
     opacity: 0.4,
   },
   continueText: {
     textAlign: "center",
-    color: "#451A03",
+    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
   },
@@ -672,16 +686,16 @@ const styles = StyleSheet.create({
   footerDivider: {
     width: "100%",
     height: 1,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E0E0E0",
     marginBottom: 16,
   },
   footerText: {
     fontSize: 12,
-    color: "#6B9F88",
+    color: "#9E9E9E",
     textAlign: "center",
   },
 
-  // Floating Map Button Styles
+  // Floating Map Button
   floatingMapContainer: {
     position: "absolute",
     bottom: 30,
@@ -693,41 +707,40 @@ const styles = StyleSheet.create({
   floatingMapBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1A3D2E",
-    paddingVertical: 12,
-    paddingHorizontal: 22,
+    backgroundColor: "#2ECC71",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
     borderRadius: 30,
-    borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderWidth: 0,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 15,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
   },
   mapIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(46, 204, 113, 0.2)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
   },
   mapIconEmoji: {
-    fontSize: 16,
+    fontSize: 18,
   },
   floatingMapText: {
     color: "#FFFFFF",
     fontWeight: "800",
-    fontSize: 14,
-    letterSpacing: 0.5,
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
   mapPulse: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#2ECC71",
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FFFFFF",
     marginLeft: 10,
   },
 });

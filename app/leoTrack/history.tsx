@@ -20,7 +20,7 @@ type AlertItem = {
   longitude: number;
 };
 
-const BACKEND_URL = "http://172.20.10.13:8000";
+const BACKEND_URL = "http://172.20.10.2:8000";
 
 export default function AlertHistory() {
   const router = useRouter();
@@ -139,7 +139,7 @@ export default function AlertHistory() {
               styles.itemIconContainer,
               {
                 backgroundColor:
-                  item.source === "Camera" ? "#1A3D2E" : "#1A2E3D",
+                  item.source === "Camera" ? "#E8F5E9" : "#E3F2FD",
               },
             ]}
           >
@@ -187,7 +187,7 @@ export default function AlertHistory() {
             styles.accentBar,
             {
               backgroundColor:
-                item.source === "Camera" ? "#2ECC71" : "#3498DB",
+                item.source === "Camera" ? "#2ECC71" : "#42A5F5",
             },
           ]}
         />
@@ -419,7 +419,7 @@ export default function AlertHistory() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     paddingTop: 60,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5E9",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
@@ -451,14 +451,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     marginBottom: 8,
     textAlign: "center",
     letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#4A4A4A",
     textAlign: "center",
     marginBottom: 20,
   },
@@ -467,13 +467,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statBox: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 16,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statValue: {
     fontSize: 22,
@@ -483,7 +488,8 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 11,
-    color: "#8BC4A9",
+    color: "#757575",
+    fontWeight: "600",
   },
 
   // Filters Section
@@ -493,7 +499,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     marginBottom: 12,
     letterSpacing: -0.3,
   },
@@ -503,31 +509,41 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     flex: 1,
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     padding: 16,
     borderRadius: 14,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   filterIcon: {
     fontSize: 24,
     marginBottom: 6,
   },
   filterText: {
-    color: "#FFFFFF",
+    color: "#212121",
     fontWeight: "600",
     fontSize: 13,
   },
 
   // Date Section
   dateSection: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     padding: 18,
     borderRadius: 18,
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   dateRow: {
     flexDirection: "row",
@@ -536,24 +552,24 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     flex: 1,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5E9",
     padding: 14,
     borderRadius: 12,
     alignItems: "center",
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: "#2ECC71",
   },
   dateLabel: {
     fontSize: 11,
-    color: "#8BC4A9",
-    fontWeight: "600",
+    color: "#1B5E20",
+    fontWeight: "700",
     marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   dateValue: {
     fontSize: 15,
-    color: "#FFFFFF",
+    color: "#1B5E20",
     fontWeight: "700",
   },
   dateSeparator: {
@@ -574,27 +590,30 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#3FDD81",
+    shadowColor: "#2ECC71",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   applyText: {
-    color: "#022C22",
+    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 15,
     letterSpacing: -0.2,
   },
   resetButton: {
     flex: 1,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#FAFAFA",
     padding: 14,
     borderRadius: 12,
     alignItems: "center",
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: "#2ECC71",
   },
   resetText: {
     color: "#2ECC71",
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: 15,
   },
 
@@ -609,7 +628,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   countBadge: {
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5E9",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -617,7 +636,7 @@ const styles = StyleSheet.create({
     borderColor: "#2ECC71",
   },
   countText: {
-    color: "#2ECC71",
+    color: "#1B5E20",
     fontSize: 12,
     fontWeight: "700",
   },
@@ -627,13 +646,18 @@ const styles = StyleSheet.create({
 
   // Alert Item
   item: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     borderRadius: 16,
     padding: 16,
     borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
     position: "relative",
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   itemHeader: {
     flexDirection: "row",
@@ -657,7 +681,7 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#212121",
     marginBottom: 4,
     letterSpacing: -0.3,
   },
@@ -674,7 +698,7 @@ const styles = StyleSheet.create({
   },
   itemBadgeText: {
     fontSize: 11,
-    color: "#8BC4A9",
+    color: "#616161",
     fontWeight: "600",
   },
   itemArrow: {
@@ -695,7 +719,7 @@ const styles = StyleSheet.create({
   },
   itemDetailText: {
     fontSize: 13,
-    color: "#8BC4A9",
+    color: "#616161",
     lineHeight: 18,
   },
   accentBar: {
@@ -711,6 +735,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 40,
     paddingHorizontal: 20,
+    backgroundColor: "#FAFAFA",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    borderStyle: "dashed",
   },
   emptyIcon: {
     fontSize: 48,
@@ -719,27 +748,30 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#212121",
     marginBottom: 6,
   },
   emptyText: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#757575",
     textAlign: "center",
   },
 
   // Close Button
   closeButton: {
-    backgroundColor: "#F59E0B",
+    backgroundColor: "#2ECC71",
     padding: 18,
     borderRadius: 16,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#FBBF24",
     marginBottom: 24,
+    shadowColor: "#2ECC71",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   closeText: {
-    color: "#451A03",
+    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
     letterSpacing: -0.2,
@@ -753,12 +785,12 @@ const styles = StyleSheet.create({
   footerDivider: {
     width: "100%",
     height: 1,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E0E0E0",
     marginBottom: 16,
   },
   footerText: {
     fontSize: 12,
-    color: "#6B9F88",
+    color: "#9E9E9E",
     textAlign: "center",
   },
 });
