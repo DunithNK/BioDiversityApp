@@ -1,6 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -21,14 +20,14 @@ type AlertItem = {
   longitude: number;
 };
 
-const BACKEND_URL = "http://172.20.10.2:8000";
+const BACKEND_URL = "http://172.20.10.13:8000";
 
 export default function LeoTrackScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [recentAlerts, setRecentAlerts] = useState<AlertItem[]>([]);
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
-  
+
   // Animation States
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
@@ -85,13 +84,13 @@ export default function LeoTrackScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchAlertsFromBackend();
-    }, [])
+    }, []),
   );
 
   const saveAlertToBackend = async (
     alert_id: string,
     coords: { latitude: number; longitude: number },
-    source: "Camera" | "Gallery"
+    source: "Camera" | "Gallery",
   ) => {
     try {
       await fetch(`${BACKEND_URL}/alert`, {
@@ -199,7 +198,8 @@ export default function LeoTrackScreen() {
           </View>
           <Text style={styles.title}>Leopard Tracker</Text>
           <Text style={styles.subtitle}>
-            Capture or upload an image of the observed leopard for AI health assessment
+            Capture or upload an image of the observed leopard for AI health
+            assessment
           </Text>
 
           {/* Status Badge */}
@@ -212,12 +212,7 @@ export default function LeoTrackScreen() {
         </Animated.View>
 
         {/* Recent Alerts Card */}
-        <Animated.View
-          style={[
-            styles.alertCard,
-            { opacity: fadeAnim },
-          ]}
-        >
+        <Animated.View style={[styles.alertCard, { opacity: fadeAnim }]}>
           <View style={styles.alertHeader}>
             <Text style={styles.alertTitle}>📍 Recent Regional Alerts</Text>
             <View style={styles.alertBadge}>
@@ -242,14 +237,19 @@ export default function LeoTrackScreen() {
                     index === recentAlerts.length - 1 && styles.alertItemLast,
                   ]}
                   onPress={() =>
-                    router.push(`/leoTrack/result?alertId=${item.alert_id}` as any)
+                    router.push(
+                      `/leoTrack/result?alertId=${item.alert_id}` as any,
+                    )
                   }
                   activeOpacity={0.85}
                 >
                   <View
                     style={[
                       styles.alertIconContainer,
-                      { backgroundColor: item.source === "Camera" ? "#E8F5E9" : "#E3F2FD" },
+                      {
+                        backgroundColor:
+                          item.source === "Camera" ? "#E8F5E9" : "#E3F2FD",
+                      },
                     ]}
                   >
                     <Text style={styles.alertIconEmoji}>
@@ -269,7 +269,8 @@ export default function LeoTrackScreen() {
                       })}
                     </Text>
                     <Text style={styles.alertCoords}>
-                      {item.latitude.toFixed(4)}°N, {item.longitude.toFixed(4)}°E
+                      {item.latitude.toFixed(4)}°N, {item.longitude.toFixed(4)}
+                      °E
                     </Text>
                   </View>
                   <View style={styles.alertStatusContainer}>
@@ -294,7 +295,7 @@ export default function LeoTrackScreen() {
         {/* Action Buttons */}
         <Animated.View style={[{ opacity: fadeAnim }, styles.actionsContainer]}>
           <Text style={styles.actionsLabel}>Capture Method</Text>
-          
+
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={handleTakeImage}
@@ -322,7 +323,9 @@ export default function LeoTrackScreen() {
               </View>
               <View style={styles.buttonTextContainer}>
                 <Text style={styles.secondaryText}>Upload Image</Text>
-                <Text style={styles.buttonSubtextSecondary}>Select from gallery</Text>
+                <Text style={styles.buttonSubtextSecondary}>
+                  Select from gallery
+                </Text>
               </View>
             </View>
           </TouchableOpacity>

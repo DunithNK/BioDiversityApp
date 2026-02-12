@@ -1,14 +1,8 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type AlertItem = {
   alert_id: string;
@@ -16,7 +10,7 @@ type AlertItem = {
   longitude: number;
 };
 
-const BACKEND_URL = "http://192.168.1.2:8000";
+const BACKEND_URL = "http://172.20.10.13:8000";
 const STORAGE_KEY = "CACHED_ALERTS";
 
 /* ------------------ GAL OYA SAFE BOUNDARY ------------------ */
@@ -79,8 +73,8 @@ export default function AlertMapScreen() {
         maxZoomLevel={14}
         pitchEnabled={false}
         rotateEnabled={false}
-        scrollEnabled={false}   // 🔒 lock map
-        zoomEnabled={true}      // controlled zoom only
+        scrollEnabled={false} // 🔒 lock map
+        zoomEnabled={true} // controlled zoom only
         showsBuildings={false}
         showsTraffic={false}
         showsIndoors={false}
@@ -94,9 +88,7 @@ export default function AlertMapScreen() {
               longitude: alert.longitude,
             }}
             onPress={() =>
-              router.push(
-                `/leoTrack/result?alertId=${alert.alert_id}` as any
-              )
+              router.push(`/leoTrack/result?alertId=${alert.alert_id}` as any)
             }
           >
             <View style={styles.marker}>
@@ -115,10 +107,7 @@ export default function AlertMapScreen() {
       </View>
 
       {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backBtn}
-        onPress={() => router.back()}
-      >
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
         <Text style={styles.backText}>← Back to Tracker</Text>
       </TouchableOpacity>
     </View>
