@@ -1,32 +1,35 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  Alert,
-  Animated,
-  ScrollView,
-} from "react-native";
-import { useEffect, useState } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  Animated,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Platform,
+} from "react-native";
+import { useFocusEffect } from "expo-router";
 
 type AlertItem = {
   alert_id: string;
-  time: string;
+  timestamp: string;
   source: "Camera" | "Gallery";
   latitude: number;
   longitude: number;
 };
 
-const BACKEND_URL = "http://172.20.10.13:8000";
+const BACKEND_URL = "http://192.168.1.2:8000";
 
 export default function AlertHistory() {
   const router = useRouter();
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [filtered, setFiltered] = useState<AlertItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [fromDate, setFromDate] = useState<Date | null>(null);
   const [toDate, setToDate] = useState<Date | null>(null);
@@ -57,143 +60,355 @@ export default function AlertHistory() {
 
   const fetchAlerts = async () => {
     try {
+      setLoading(true);
       const res = await fetch(`${BACKEND_URL}/alerts`);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
-      setAlerts(data);
-      setFiltered(data);
-    } catch {
-      Alert.alert("Error", "Failed to load alert history");
+      
+      // Validate data is an array
+      if (!Array.isArray(data)) {
+        console.error("Invalid data format:", data);
+        Alert.alert("Error", "Invalid data format from server");
+        return;
+      }
+      
+      console.log("Fetched alerts:", data.length);
+      
+      // Sort by timestamp (newest first)
+      const sortedData = data.sort((a, b) => {
+        const dateA = new Date(a.timestamp || 0).getTime();
+        const dateB = new Date(b.timestamp || 0).getTime();
+        return dateB - dateA;
+      });
+      
+      setAlerts(sortedData);
+      setFiltered(sortedData);
+    } catch (error) {
+      console.error("Fetch alerts error:", error);
+      Alert.alert(
+        "Connection Error", 
+        "Failed to load alert history. Please check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchAlerts();
-  }, []);
+  // Fetch on mount and when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchAlerts();
+    }, [])
+  );
 
-  /* ---------------- Filters ---------------- */
+  /* ---------------- Helper Functions ---------------- */
+
+  // Format date for display
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid Date";
+      
+      return date.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      return "Invalid Date";
+    }
+  };
+
+  // Format date to local date string for comparison
+  const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  /* ---------------- Filter Functions (COMPLETELY FIXED) ---------------- */
 
   const applyLastDays = (days: number) => {
-    const now = new Date();
-    const cutoff = new Date();
-    cutoff.setDate(now.getDate() - days);
+    try {
+      console.log(`\n=== Applying Last ${days} Days Filter ===`);
+      
+      // Get current date and time
+      const now = new Date();
+      console.log("Current time:", now.toISOString());
+      
+      // Calculate cutoff date (X days ago)
+      const cutoff = new Date(now);
+      cutoff.setDate(now.getDate() - days);
+      console.log(`Cutoff (${days} days ago):`, cutoff.toISOString());
 
-    const result = alerts.filter((a) => {
-      const t = new Date(a.time);
-      return t >= cutoff && t <= now;
-    });
+      const result = alerts.filter((a) => {
+        if (!a.timestamp) {
+          console.warn("Alert missing timestamp:", a.alert_id);
+          return false;
+        }
 
-    setFiltered(result);
+        const alertDate = new Date(a.timestamp);
+        
+        // Check if date is valid
+        if (isNaN(alertDate.getTime())) {
+          console.warn("Invalid timestamp:", a.timestamp);
+          return false;
+        }
+
+        const isInRange = alertDate >= cutoff && alertDate <= now;
+        
+        console.log(`Alert ${a.alert_id}:`, {
+          timestamp: a.timestamp,
+          alertDate: alertDate.toISOString(),
+          isInRange: isInRange
+        });
+
+        return isInRange;
+      });
+
+      console.log(`Found ${result.length} alerts in last ${days} days`);
+      console.log("=== End Filter ===\n");
+
+      setFiltered(result);
+      
+      // Show feedback only if no results
+      if (result.length === 0) {
+        Alert.alert(
+          "No Results",
+          `No alerts found in the last ${days} days.`
+        );
+      }
+    } catch (error) {
+      console.error("Filter error:", error);
+      Alert.alert("Error", "Failed to apply filter");
+    }
   };
 
   const applyCustomRange = () => {
-    if (!fromDate || !toDate) {
-      Alert.alert("Validation", "Select both From and To dates");
-      return;
+    try {
+      console.log("\n=== Applying Custom Range Filter ===");
+      
+      // Validation
+      if (!fromDate || !toDate) {
+        Alert.alert(
+          "Missing Dates",
+          "Please select both From and To dates."
+        );
+        return;
+      }
+
+      if (fromDate > toDate) {
+        Alert.alert(
+          "Invalid Range",
+          "From date cannot be after To date. Please adjust your selection."
+        );
+        return;
+      }
+
+      console.log("From Date:", fromDate.toISOString());
+      console.log("To Date:", toDate.toISOString());
+
+      // Create date boundaries in LOCAL timezone
+      const fromDateLocal = getLocalDateString(fromDate);
+      const toDateLocal = getLocalDateString(toDate);
+      
+      console.log("From Date (local):", fromDateLocal);
+      console.log("To Date (local):", toDateLocal);
+
+      // Apply filter
+      const result = alerts.filter((a) => {
+        if (!a.timestamp) {
+          console.warn("Alert missing timestamp:", a.alert_id);
+          return false;
+        }
+
+        const alertDate = new Date(a.timestamp);
+        
+        // Check if date is valid
+        if (isNaN(alertDate.getTime())) {
+          console.warn("Invalid timestamp:", a.timestamp);
+          return false;
+        }
+
+        // Get alert date in local timezone
+        const alertDateLocal = getLocalDateString(alertDate);
+        
+        // Compare date strings (YYYY-MM-DD format)
+        const isInRange = alertDateLocal >= fromDateLocal && alertDateLocal <= toDateLocal;
+        
+        console.log(`Alert ${a.alert_id}:`, {
+          timestamp: a.timestamp,
+          alertDateLocal: alertDateLocal,
+          isInRange: isInRange
+        });
+
+        return isInRange;
+      });
+
+      console.log(`Found ${result.length} alerts in custom range`);
+      console.log("=== End Filter ===\n");
+
+      setFiltered(result);
+      
+      // Show feedback only if no results
+      if (result.length === 0) {
+        Alert.alert(
+          "No Results",
+          `No alerts found between ${fromDate.toLocaleDateString()} and ${toDate.toLocaleDateString()}.`
+        );
+      }
+    } catch (error) {
+      console.error("Custom range error:", error);
+      Alert.alert("Error", "Failed to apply custom date range");
     }
-
-    if (fromDate > toDate) {
-      Alert.alert("Validation", "From date cannot be after To date");
-      return;
-    }
-
-    const result = alerts.filter((a) => {
-      const t = new Date(a.time);
-      return t >= fromDate && t <= toDate;
-    });
-
-    setFiltered(result);
   };
 
   const resetFilters = () => {
+    console.log("Resetting filters");
     setFiltered(alerts);
     setFromDate(null);
     setToDate(null);
   };
 
-  /* ---------------- Render ---------------- */
+  /* ---------------- Date Picker Handlers (FIXED) ---------------- */
 
-  const renderItem = ({ item, index }: { item: AlertItem; index: number }) => (
-    <Animated.View
-      style={{
-        opacity: fadeAnim,
-        transform: [
-          {
-            translateX: fadeAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [50, 0],
-            }),
-          },
-        ],
-      }}
-    >
-      <TouchableOpacity
-        style={styles.item}
-        onPress={() =>
-          router.push(`/leoTrack/result?alertId=${item.alert_id}` as any)
-        }
-        activeOpacity={0.85}
+  const handleFromDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowFromPicker(false);
+    }
+    
+    if (event.type === 'dismissed') {
+      setShowFromPicker(false);
+      return;
+    }
+    
+    if (selectedDate) {
+      console.log("From date selected:", selectedDate.toISOString());
+      setFromDate(selectedDate);
+      
+      if (Platform.OS === 'ios') {
+        setShowFromPicker(false);
+      }
+    }
+  };
+
+  const handleToDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowToPicker(false);
+    }
+    
+    if (event.type === 'dismissed') {
+      setShowToPicker(false);
+      return;
+    }
+    
+    if (selectedDate) {
+      console.log("To date selected:", selectedDate.toISOString());
+      setToDate(selectedDate);
+      
+      if (Platform.OS === 'ios') {
+        setShowToPicker(false);
+      }
+    }
+  };
+
+  /* ---------------- Render Functions ---------------- */
+
+  const renderItem = ({ item, index }: { item: AlertItem; index: number }) => {
+    // Validate item data
+    if (!item.alert_id || !item.timestamp) {
+      console.warn("Invalid alert item:", item);
+      return null;
+    }
+
+    return (
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [
+            {
+              translateX: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 0],
+              }),
+            },
+          ],
+        }}
       >
-        <View style={styles.itemHeader}>
-          <View
-            style={[
-              styles.itemIconContainer,
-              {
-                backgroundColor:
-                  item.source === "Camera" ? "#E8F5E9" : "#E3F2FD",
-              },
-            ]}
-          >
-            <Text style={styles.itemIcon}>
-              {item.source === "Camera" ? "📷" : "🖼️"}
-            </Text>
+        <TouchableOpacity
+          style={styles.item}
+          onPress={() => {
+            try {
+              router.push(`/leoTrack/result?alertId=${item.alert_id}` as any);
+            } catch (error) {
+              console.error("Navigation error:", error);
+              Alert.alert("Error", "Failed to open alert details");
+            }
+          }}
+          activeOpacity={0.85}
+        >
+          <View style={styles.itemHeader}>
+            <View
+              style={[
+                styles.itemIconContainer,
+                {
+                  backgroundColor:
+                    item.source === "Camera" ? "#E8F5E9" : "#E3F2FD",
+                },
+              ]}
+            >
+              <Text style={styles.itemIcon}>
+                {item.source === "Camera" ? "📷" : "🖼️"}
+              </Text>
+            </View>
+            <View style={styles.itemContent}>
+              <Text style={styles.itemTitle}>Leopard via {item.source}</Text>
+              <View style={styles.itemBadge}>
+                <View style={styles.itemBadgeDot} />
+                <Text style={styles.itemBadgeText}>Recorded</Text>
+              </View>
+            </View>
+            <Text style={styles.itemArrow}>→</Text>
           </View>
-          <View style={styles.itemContent}>
-            <Text style={styles.itemTitle}>
-              Leopard via {item.source}
-            </Text>
-            <View style={styles.itemBadge}>
-              <View style={styles.itemBadgeDot} />
-              <Text style={styles.itemBadgeText}>Recorded</Text>
+
+          <View style={styles.itemDetails}>
+            <View style={styles.itemDetail}>
+              <Text style={styles.itemDetailIcon}>🕒</Text>
+              <Text style={styles.itemDetailText}>
+                {formatDate(item.timestamp)}
+              </Text>
+            </View>
+
+            <View style={styles.itemDetail}>
+              <Text style={styles.itemDetailIcon}>📍</Text>
+              <Text style={styles.itemDetailText}>
+                {typeof item.latitude === 'number' && typeof item.longitude === 'number'
+                  ? `${item.latitude.toFixed(4)}°N, ${item.longitude.toFixed(4)}°E`
+                  : "Location unavailable"}
+              </Text>
             </View>
           </View>
-          <Text style={styles.itemArrow}>→</Text>
-        </View>
 
-        <View style={styles.itemDetails}>
-          <View style={styles.itemDetail}>
-            <Text style={styles.itemDetailIcon}>🕒</Text>
-            <Text style={styles.itemDetailText}>
-              {new Date(item.time).toLocaleString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
-          </View>
-
-          <View style={styles.itemDetail}>
-            <Text style={styles.itemDetailIcon}>📍</Text>
-            <Text style={styles.itemDetailText}>
-              {item.latitude.toFixed(4)}°N, {item.longitude.toFixed(4)}°E
-            </Text>
-          </View>
-        </View>
-
-        {/* Accent bar */}
-        <View
-          style={[
-            styles.accentBar,
-            {
-              backgroundColor:
-                item.source === "Camera" ? "#2ECC71" : "#42A5F5",
-            },
-          ]}
-        />
-      </TouchableOpacity>
-    </Animated.View>
-  );
+          {/* Accent bar */}
+          <View
+            style={[
+              styles.accentBar,
+              {
+                backgroundColor: item.source === "Camera" ? "#2ECC71" : "#42A5F5",
+              },
+            ]}
+          />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -249,6 +464,7 @@ export default function AlertHistory() {
               style={styles.filterButton}
               onPress={() => applyLastDays(7)}
               activeOpacity={0.85}
+              disabled={loading}
             >
               <Text style={styles.filterIcon}>📅</Text>
               <Text style={styles.filterText}>Last 7 Days</Text>
@@ -258,6 +474,7 @@ export default function AlertHistory() {
               style={styles.filterButton}
               onPress={() => applyLastDays(30)}
               activeOpacity={0.85}
+              disabled={loading}
             >
               <Text style={styles.filterIcon}>📆</Text>
               <Text style={styles.filterText}>Last 30 Days</Text>
@@ -275,12 +492,13 @@ export default function AlertHistory() {
           ]}
         >
           <Text style={styles.sectionTitle}>Custom Date Range</Text>
-          
+
           <View style={styles.dateRow}>
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowFromPicker(true)}
               activeOpacity={0.85}
+              disabled={loading}
             >
               <Text style={styles.dateLabel}>From</Text>
               <Text style={styles.dateValue}>
@@ -288,6 +506,7 @@ export default function AlertHistory() {
                   ? fromDate.toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
+                      year: "numeric",
                     })
                   : "Select"}
               </Text>
@@ -301,6 +520,7 @@ export default function AlertHistory() {
               style={styles.dateButton}
               onPress={() => setShowToPicker(true)}
               activeOpacity={0.85}
+              disabled={loading}
             >
               <Text style={styles.dateLabel}>To</Text>
               <Text style={styles.dateValue}>
@@ -308,6 +528,7 @@ export default function AlertHistory() {
                   ? toDate.toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
+                      year: "numeric",
                     })
                   : "Select"}
               </Text>
@@ -319,6 +540,7 @@ export default function AlertHistory() {
               style={styles.applyButton}
               onPress={applyCustomRange}
               activeOpacity={0.85}
+              disabled={loading}
             >
               <Text style={styles.applyText}>Apply Range</Text>
             </TouchableOpacity>
@@ -327,6 +549,7 @@ export default function AlertHistory() {
               style={styles.resetButton}
               onPress={resetFilters}
               activeOpacity={0.85}
+              disabled={loading}
             >
               <Text style={styles.resetText}>Reset</Text>
             </TouchableOpacity>
@@ -351,24 +574,44 @@ export default function AlertHistory() {
             )}
           </View>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>⏳</Text>
+              <Text style={styles.emptyTitle}>Loading...</Text>
+              <Text style={styles.emptyText}>Fetching alert history</Text>
+            </View>
+          ) : filtered.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>🔍</Text>
               <Text style={styles.emptyTitle}>No Alerts Found</Text>
               <Text style={styles.emptyText}>
-                Try adjusting your filter criteria
+                {alerts.length === 0
+                  ? "No alerts have been recorded yet"
+                  : "Try adjusting your filter criteria"}
               </Text>
             </View>
           ) : (
             <FlatList
               data={filtered}
-              keyExtractor={(item) => item.alert_id}
+              keyExtractor={(item, index) => item.alert_id || `alert-${index}`}
               renderItem={renderItem}
               scrollEnabled={false}
               contentContainerStyle={styles.listContent}
             />
           )}
         </Animated.View>
+
+        {/* Refresh Button */}
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={fetchAlerts}
+          activeOpacity={0.85}
+          disabled={loading}
+        >
+          <Text style={styles.refreshText}>
+            {loading ? "🔄 Refreshing..." : "🔄 Refresh Data"}
+          </Text>
+        </TouchableOpacity>
 
         {/* Close Button */}
         <TouchableOpacity
@@ -388,26 +631,25 @@ export default function AlertHistory() {
         </View>
       </ScrollView>
 
-      {/* Date Pickers */}
+      {/* Date Pickers - FIXED to prevent future dates */}
       {showFromPicker && (
         <DateTimePicker
-          value={fromDate ?? new Date()}
+          value={fromDate || new Date()}
           mode="date"
-          onChange={(_, d) => {
-            setShowFromPicker(false);
-            if (d) setFromDate(d);
-          }}
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={handleFromDateChange}
+          maximumDate={new Date()} // Prevent future dates
         />
       )}
 
       {showToPicker && (
         <DateTimePicker
-          value={toDate ?? new Date()}
+          value={toDate || new Date()}
           mode="date"
-          onChange={(_, d) => {
-            setShowToPicker(false);
-            if (d) setToDate(d);
-          }}
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={handleToDateChange}
+          maximumDate={new Date()} // Prevent future dates
+          minimumDate={fromDate || undefined} // Can't select before From date
         />
       )}
     </View>
@@ -755,6 +997,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#757575",
     textAlign: "center",
+  },
+
+  // Refresh Button
+  refreshButton: {
+    backgroundColor: "#FAFAFA",
+    padding: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "#2ECC71",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  refreshText: {
+    color: "#2ECC71",
+    fontWeight: "700",
+    fontSize: 15,
+    letterSpacing: -0.2,
   },
 
   // Close Button

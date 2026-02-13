@@ -1,5 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import * as ImageManipulator from "expo-image-manipulator";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -20,7 +21,7 @@ type AlertItem = {
   longitude: number;
 };
 
-const BACKEND_URL = "http://172.20.10.13:8000";
+const BACKEND_URL = "http://192.168.1.2:8000";
 
 export default function LeoTrackScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -122,6 +123,50 @@ export default function LeoTrackScreen() {
 
   /* -------------------- Image handlers -------------------- */
 
+  const detectLeopard = async (uri: string) => {
+    // Convert to clean JPEG before upload
+    const manipulated = await ImageManipulator.manipulateAsync(
+      uri,
+      [],
+      {
+        compress: 1,
+        format: ImageManipulator.SaveFormat.JPEG,
+      },
+    );
+
+    const formData = new FormData();
+    formData.append("file", {
+      uri: manipulated.uri,
+      name: "photo.jpg",
+      type: "image/jpeg",
+    } as any);
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/predict`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      
+      console.log("Backend response:", data);
+      
+      // Detection now depends only on backend result
+      if (data.result === "Leopard Detected") {
+        return true;
+      } else {
+        Alert.alert(
+          "Leopard Not Detected",
+          "This image does not contain a leopard. Please upload a valid leopard image.",
+        );
+        return false;
+      }
+    } catch (error) {
+      console.log("Detection error:", error);
+      Alert.alert("Server Error", "Failed to connect to detection server.");
+      return false;
+    }
+  };
+
   const handleTakeImage = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
@@ -135,7 +180,17 @@ export default function LeoTrackScreen() {
     });
 
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+
+      setLoading(true);
+
+      const isLeopard = await detectLeopard(uri);
+
+      setLoading(false);
+
+      if (!isLeopard) return;
+
+      setImageUri(uri);
       await addRecentAlert("Camera");
     }
   };
@@ -153,7 +208,17 @@ export default function LeoTrackScreen() {
     });
 
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+
+      setLoading(true);
+
+      const isLeopard = await detectLeopard(uri);
+
+      setLoading(false);
+
+      if (!isLeopard) return;
+
+      setImageUri(uri);
       await addRecentAlert("Gallery");
     }
   };

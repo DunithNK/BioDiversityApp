@@ -10,7 +10,7 @@ type AlertItem = {
   longitude: number;
 };
 
-const BACKEND_URL = "http://172.20.10.13:8000";
+const BACKEND_URL = "http://192.168.1.2:8000";
 const STORAGE_KEY = "CACHED_ALERTS";
 
 /* ------------------ GAL OYA SAFE BOUNDARY ------------------ */
