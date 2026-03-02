@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 
-const BACKEND_URL = "http://192.168.1.2:8000";
+const BACKEND_URL = "http://172.20.10.2:8000";
 
 type Assessment = {
   alert_id: string;
@@ -73,7 +73,6 @@ export default function ResultScreen() {
         }),
       ]).start();
 
-      // Pulse animation for critical severity
       if (assessment?.severity === "Critical") {
         Animated.loop(
           Animated.sequence([
@@ -104,9 +103,9 @@ export default function ResultScreen() {
       case "Critical":
         return "#EF4444";
       case "None":
-        return "#8BC4A9";
+        return "#2ECC71";
       default:
-        return "#3498DB";
+        return "#2ECC71";
     }
   };
 
@@ -127,20 +126,37 @@ export default function ResultScreen() {
     }
   };
 
-  const getBackgroundBySeverity = (severity?: string) => {
+  const getBgBySeverity = (severity?: string) => {
     switch (severity) {
       case "Low":
-        return "#1A3D2E";
+        return "#E8F5E9";
       case "Moderate":
-        return "#3D2E1A";
+        return "#FFF8E1";
       case "High":
-        return "#3D1F1A";
+        return "#FFF3E0";
       case "Critical":
-        return "#3D1A1A";
+        return "#FFEBEE";
       case "None":
-        return "#1A3D3D";
+        return "#E8F5E9";
       default:
-        return "#1A2E3D";
+        return "#E8F5E9";
+    }
+  };
+
+  const getBorderBySeverity = (severity?: string) => {
+    switch (severity) {
+      case "Low":
+        return "#2ECC71";
+      case "Moderate":
+        return "#F59E0B";
+      case "High":
+        return "#F97316";
+      case "Critical":
+        return "#EF4444";
+      case "None":
+        return "#2ECC71";
+      default:
+        return "#2ECC71";
     }
   };
 
@@ -273,8 +289,8 @@ export default function ResultScreen() {
             {
               opacity: fadeAnim,
               transform: [{ scale: scaleAnim }],
-              borderColor: getColorBySeverity(assessment.severity),
-              backgroundColor: getBackgroundBySeverity(assessment.severity),
+              borderColor: getBorderBySeverity(assessment.severity),
+              backgroundColor: getBgBySeverity(assessment.severity),
             },
           ]}
         >
@@ -316,7 +332,7 @@ export default function ResultScreen() {
               <Text style={styles.scoreUnit}>/ 100</Text>
             </View>
 
-            {/* Progress Ring Visual */}
+            {/* Progress Visual */}
             <View style={styles.progressRing}>
               <View style={styles.progressBackground} />
               <View
@@ -335,12 +351,7 @@ export default function ResultScreen() {
 
         {/* Recommendation Card */}
         <Animated.View
-          style={[
-            styles.recommendationCard,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
+          style={[styles.recommendationCard, { opacity: fadeAnim }]}
         >
           <View style={styles.recommendationHeader}>
             <Text style={styles.recommendationIcon}>📌</Text>
@@ -352,14 +363,7 @@ export default function ResultScreen() {
         </Animated.View>
 
         {/* Details Card */}
-        <Animated.View
-          style={[
-            styles.detailsCard,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+        <Animated.View style={[styles.detailsCard, { opacity: fadeAnim }]}>
           <Text style={styles.detailsTitle}>Assessment Details</Text>
 
           <View style={styles.detailRow}>
@@ -414,14 +418,7 @@ export default function ResultScreen() {
         </Animated.View>
 
         {/* Action Buttons */}
-        <Animated.View
-          style={[
-            styles.actionsContainer,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+        <Animated.View style={[styles.actionsContainer, { opacity: fadeAnim }]}>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => router.replace("/leoTrack")}
@@ -456,7 +453,7 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     paddingTop: 60,
@@ -474,22 +471,22 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#E8F5E9",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
-    borderColor: "#1A3D2E",
+    borderColor: "#2ECC71",
     marginBottom: 24,
   },
   loadingTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     marginBottom: 8,
   },
   loadingText: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#757575",
     textAlign: "center",
   },
 
@@ -505,7 +502,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#FFF8E1",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
@@ -517,14 +514,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#212121",
     marginBottom: 12,
     textAlign: "center",
     letterSpacing: -0.5,
   },
   emptySubtitle: {
     fontSize: 15,
-    color: "#8BC4A9",
+    color: "#757575",
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 24,
@@ -532,12 +529,14 @@ const styles = StyleSheet.create({
   },
   emptyInfoCard: {
     flexDirection: "row",
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     borderRadius: 16,
     padding: 18,
     marginBottom: 28,
     borderLeftWidth: 4,
-    borderLeftColor: "#3498DB",
+    borderLeftColor: "#2ECC71",
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
     width: "100%",
   },
   emptyInfoIcon: {
@@ -549,27 +548,30 @@ const styles = StyleSheet.create({
   },
   emptyInfoTitle: {
     fontSize: 15,
-    color: "#FFFFFF",
+    color: "#212121",
     fontWeight: "700",
     marginBottom: 6,
     letterSpacing: -0.2,
   },
   emptyInfoText: {
     fontSize: 13,
-    color: "#8BC4A9",
+    color: "#757575",
     lineHeight: 19,
   },
   backButton: {
-    backgroundColor: "#F59E0B",
+    backgroundColor: "#2ECC71",
     padding: 18,
     borderRadius: 16,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#FBBF24",
     width: "100%",
+    shadowColor: "#2ECC71",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   backText: {
-    color: "#451A03",
+    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
     letterSpacing: -0.2,
@@ -587,7 +589,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5E9",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 4,
@@ -598,14 +600,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     marginBottom: 8,
     textAlign: "center",
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#757575",
     textAlign: "center",
     lineHeight: 20,
   },
@@ -615,12 +617,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     marginBottom: 20,
-    borderWidth: 3,
+    borderWidth: 2,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   severityLabel: {
     fontSize: 12,
-    color: "#8BC4A9",
+    color: "#757575",
     fontWeight: "600",
     marginBottom: 16,
     textTransform: "uppercase",
@@ -641,8 +648,8 @@ const styles = StyleSheet.create({
   },
   severityDivider: {
     width: "100%",
-    height: 2,
-    backgroundColor: "#1A3D2E",
+    height: 1,
+    backgroundColor: "#E0E0E0",
     marginBottom: 20,
   },
   scoreSection: {
@@ -657,7 +664,7 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     fontSize: 13,
-    color: "#8BC4A9",
+    color: "#757575",
     fontWeight: "600",
     marginBottom: 8,
   },
@@ -668,49 +675,57 @@ const styles = StyleSheet.create({
   },
   scoreUnit: {
     fontSize: 16,
-    color: "#6B9F88",
+    color: "#9E9E9E",
     fontWeight: "600",
   },
   progressRing: {
     width: 80,
     height: 120,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#F5F5F5",
     borderRadius: 40,
     overflow: "hidden",
     position: "relative",
     justifyContent: "flex-end",
     alignItems: "center",
     paddingBottom: 12,
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
   },
   progressBackground: {
     position: "absolute",
     width: "100%",
     height: "100%",
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
   },
   progressFill: {
     position: "absolute",
     bottom: 0,
     width: "100%",
     borderRadius: 40,
+    opacity: 0.85,
   },
   progressPercent: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#212121",
     zIndex: 2,
   },
 
   // Recommendation Card
   recommendationCard: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     borderRadius: 18,
     padding: 20,
     marginBottom: 20,
     borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
     borderLeftWidth: 4,
-    borderLeftColor: "#3498DB",
+    borderLeftColor: "#2ECC71",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   recommendationHeader: {
     flexDirection: "row",
@@ -724,28 +739,33 @@ const styles = StyleSheet.create({
   recommendationTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     letterSpacing: -0.3,
   },
   recommendationText: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#4A4A4A",
     lineHeight: 21,
   },
 
   // Details Card
   detailsCard: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     borderRadius: 18,
     padding: 20,
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   detailsTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     marginBottom: 16,
     letterSpacing: -0.3,
   },
@@ -758,9 +778,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#FFFFFF",
     padding: 14,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
   },
   detailIcon: {
     fontSize: 24,
@@ -771,7 +793,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 11,
-    color: "#8BC4A9",
+    color: "#9E9E9E",
     fontWeight: "600",
     marginBottom: 3,
     textTransform: "uppercase",
@@ -779,7 +801,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 14,
-    color: "#FFFFFF",
+    color: "#212121",
     fontWeight: "700",
     letterSpacing: -0.2,
   },
@@ -793,26 +815,29 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 16,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#3FDD81",
     marginBottom: 12,
+    shadowColor: "#2ECC71",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   primaryText: {
-    color: "#022C22",
+    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
     letterSpacing: -0.2,
   },
   secondaryButton: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     padding: 18,
     borderRadius: 16,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
   },
   secondaryText: {
-    color: "#FFFFFF",
+    color: "#212121",
     fontWeight: "700",
     fontSize: 16,
     letterSpacing: -0.2,
@@ -826,12 +851,12 @@ const styles = StyleSheet.create({
   footerDivider: {
     width: "100%",
     height: 1,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E0E0E0",
     marginBottom: 16,
   },
   footerText: {
     fontSize: 12,
-    color: "#6B9F88",
+    color: "#9E9E9E",
     textAlign: "center",
   },
 });

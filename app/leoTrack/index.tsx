@@ -1,6 +1,6 @@
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import * as ImageManipulator from "expo-image-manipulator";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -21,7 +21,7 @@ type AlertItem = {
   longitude: number;
 };
 
-const BACKEND_URL = "http://192.168.1.2:8000";
+const BACKEND_URL = "http://172.20.10.2:8000";
 
 export default function LeoTrackScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -125,14 +125,10 @@ export default function LeoTrackScreen() {
 
   const detectLeopard = async (uri: string) => {
     // Convert to clean JPEG before upload
-    const manipulated = await ImageManipulator.manipulateAsync(
-      uri,
-      [],
-      {
-        compress: 1,
-        format: ImageManipulator.SaveFormat.JPEG,
-      },
-    );
+    const manipulated = await ImageManipulator.manipulateAsync(uri, [], {
+      compress: 1,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
 
     const formData = new FormData();
     formData.append("file", {
@@ -147,9 +143,9 @@ export default function LeoTrackScreen() {
         body: formData,
       });
       const data = await res.json();
-      
+
       console.log("Backend response:", data);
-      
+
       // Detection now depends only on backend result
       if (data.result === "Leopard Detected") {
         return true;

@@ -1,17 +1,17 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Switch,
   Alert,
   Animated,
   ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useState, useEffect } from "react";
-import { useRouter, useLocalSearchParams } from "expo-router";
 
-const BACKEND_URL = "http://192.168.1.2:8000";
+const BACKEND_URL = "http://172.20.10.2:8000";
 
 export default function HealthAssessment() {
   const router = useRouter();
@@ -64,11 +64,20 @@ export default function HealthAssessment() {
 
   const getRiskColor = () => {
     const level = getRiskLevel();
-    if (level === "None") return "#8BC4A9";
+    if (level === "None") return "#2ECC71";
     if (level === "Low") return "#2ECC71";
     if (level === "Moderate") return "#F59E0B";
     if (level === "High") return "#F97316";
     return "#EF4444";
+  };
+
+  const getRiskBg = () => {
+    const level = getRiskLevel();
+    if (level === "None") return "#E8F5E9";
+    if (level === "Low") return "#E8F5E9";
+    if (level === "Moderate") return "#FFF8E1";
+    if (level === "High") return "#FFF3E0";
+    return "#FFEBEE";
   };
 
   const getRiskIcon = () => {
@@ -108,7 +117,7 @@ export default function HealthAssessment() {
     } catch {
       Alert.alert(
         "Save Failed",
-        "Assessment could not be saved. Please try again."
+        "Assessment could not be saved. Please try again.",
       );
     } finally {
       setSubmitting(false);
@@ -119,18 +128,22 @@ export default function HealthAssessment() {
     label: string,
     key: keyof typeof form,
     icon: string,
-    description: string
+    description: string,
   ) => (
     <Animated.View
       style={[
         styles.switchCard,
-        {
-          opacity: fadeAnim,
-        },
+        form[key] && styles.switchCardActive,
+        { opacity: fadeAnim },
       ]}
     >
       <View style={styles.switchHeader}>
-        <View style={styles.switchIconContainer}>
+        <View
+          style={[
+            styles.switchIconContainer,
+            form[key] && styles.switchIconContainerActive,
+          ]}
+        >
           <Text style={styles.switchIcon}>{icon}</Text>
         </View>
         <View style={styles.switchContent}>
@@ -140,9 +153,9 @@ export default function HealthAssessment() {
         <Switch
           value={form[key]}
           onValueChange={(value) => setForm({ ...form, [key]: value })}
-          trackColor={{ false: "#1A3D2E", true: "#2ECC71" }}
-          thumbColor={form[key] ? "#FFFFFF" : "#8BC4A9"}
-          ios_backgroundColor="#1A3D2E"
+          trackColor={{ false: "#E0E0E0", true: "#2ECC71" }}
+          thumbColor={form[key] ? "#FFFFFF" : "#BDBDBD"}
+          ios_backgroundColor="#E0E0E0"
         />
       </View>
       {form[key] && <View style={styles.activeIndicator} />}
@@ -184,6 +197,7 @@ export default function HealthAssessment() {
               opacity: fadeAnim,
               transform: [{ scale: scaleAnim }],
               borderColor: getRiskColor(),
+              backgroundColor: getRiskBg(),
             },
           ]}
         >
@@ -198,7 +212,9 @@ export default function HealthAssessment() {
                 {activeCount} indicator{activeCount !== 1 ? "s" : ""} active
               </Text>
             </View>
-            <View style={styles.scoreContainer}>
+            <View
+              style={[styles.scoreContainer, { borderColor: getRiskColor() }]}
+            >
               <Text style={[styles.scoreValue, { color: getRiskColor() }]}>
                 {riskScore}
               </Text>
@@ -226,12 +242,7 @@ export default function HealthAssessment() {
 
         {/* Assessment Section */}
         <Animated.View
-          style={[
-            styles.assessmentSection,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
+          style={[styles.assessmentSection, { opacity: fadeAnim }]}
         >
           <Text style={styles.sectionTitle}>Health Indicators</Text>
           <Text style={styles.sectionSubtitle}>
@@ -242,37 +253,30 @@ export default function HealthAssessment() {
             "Limping Observed",
             "limping",
             "🦵",
-            "Difficulty walking or abnormal gait"
+            "Difficulty walking or abnormal gait",
           )}
           {renderSwitch(
             "Visible Injury",
             "visible_injury",
             "🩹",
-            "Wounds, cuts, or physical damage"
+            "Wounds, cuts, or physical damage",
           )}
           {renderSwitch(
             "Abnormal Behavior",
             "abnormal_behavior",
             "🧠",
-            "Unusual actions or disorientation"
+            "Unusual actions or disorientation",
           )}
           {renderSwitch(
             "Near Human Settlement",
             "near_human_area",
             "🏘️",
-            "Close proximity to populated areas"
+            "Close proximity to populated areas",
           )}
         </Animated.View>
 
         {/* Info Card */}
-        <Animated.View
-          style={[
-            styles.infoCard,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+        <Animated.View style={[styles.infoCard, { opacity: fadeAnim }]}>
           <Text style={styles.infoIcon}>💡</Text>
           <View style={styles.infoContent}>
             <Text style={styles.infoTitle}>Assessment Guidelines</Text>
@@ -285,13 +289,7 @@ export default function HealthAssessment() {
         </Animated.View>
 
         {/* Submit Button */}
-        <Animated.View
-          style={[
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+        <Animated.View style={{ opacity: fadeAnim }}>
           <TouchableOpacity
             style={[
               styles.submitButton,
@@ -324,7 +322,7 @@ export default function HealthAssessment() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     paddingTop: 60,
@@ -344,7 +342,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5E9",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
@@ -356,14 +354,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     marginBottom: 8,
     textAlign: "center",
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#757575",
     textAlign: "center",
     lineHeight: 20,
     paddingHorizontal: 20,
@@ -371,15 +369,19 @@ const styles = StyleSheet.create({
 
   // Risk Card
   riskCard: {
-    backgroundColor: "#0F2F23",
     borderRadius: 18,
     padding: 20,
     marginBottom: 24,
-    borderWidth: 3,
+    borderWidth: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   riskLabel: {
     fontSize: 12,
-    color: "#8BC4A9",
+    color: "#757575",
     fontWeight: "600",
     marginBottom: 12,
     textTransform: "uppercase",
@@ -405,14 +407,15 @@ const styles = StyleSheet.create({
   },
   riskSubtext: {
     fontSize: 13,
-    color: "#8BC4A9",
+    color: "#757575",
   },
   scoreContainer: {
     alignItems: "center",
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 14,
+    borderWidth: 2,
   },
   scoreValue: {
     fontSize: 28,
@@ -421,7 +424,7 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     fontSize: 11,
-    color: "#8BC4A9",
+    color: "#9E9E9E",
     fontWeight: "600",
   },
   progressContainer: {
@@ -429,7 +432,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E0E0E0",
     borderRadius: 4,
     overflow: "hidden",
     marginBottom: 8,
@@ -440,7 +443,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    color: "#8BC4A9",
+    color: "#757575",
     textAlign: "center",
     fontWeight: "600",
   },
@@ -452,27 +455,36 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#1B5E20",
     marginBottom: 6,
     letterSpacing: -0.3,
   },
   sectionSubtitle: {
     fontSize: 13,
-    color: "#8BC4A9",
+    color: "#757575",
     marginBottom: 16,
     lineHeight: 18,
   },
 
   // Switch Card
   switchCard: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
     position: "relative",
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  switchCardActive: {
+    borderColor: "#2ECC71",
+    backgroundColor: "#F0FBF4",
   },
   switchHeader: {
     flexDirection: "row",
@@ -482,10 +494,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E0E0E0",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+  },
+  switchIconContainerActive: {
+    backgroundColor: "#E8F5E9",
   },
   switchIcon: {
     fontSize: 22,
@@ -497,13 +512,13 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#212121",
     marginBottom: 3,
     letterSpacing: -0.2,
   },
   switchDescription: {
     fontSize: 12,
-    color: "#8BC4A9",
+    color: "#757575",
     lineHeight: 16,
   },
   activeIndicator: {
@@ -511,19 +526,26 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 4,
+    height: 3,
     backgroundColor: "#2ECC71",
   },
 
   // Info Card
   infoCard: {
     flexDirection: "row",
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FAFAFA",
     borderRadius: 16,
     padding: 18,
     marginBottom: 24,
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
     borderLeftWidth: 4,
-    borderLeftColor: "#3498DB",
+    borderLeftColor: "#2ECC71",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   infoIcon: {
     fontSize: 32,
@@ -534,14 +556,14 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 15,
-    color: "#FFFFFF",
+    color: "#1B5E20",
     fontWeight: "700",
     marginBottom: 6,
     letterSpacing: -0.2,
   },
   infoText: {
     fontSize: 13,
-    color: "#8BC4A9",
+    color: "#4A4A4A",
     lineHeight: 19,
   },
 
@@ -551,15 +573,18 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 16,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#3FDD81",
     marginBottom: 24,
+    shadowColor: "#2ECC71",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   submitButtonDisabled: {
     opacity: 0.5,
   },
   submitText: {
-    color: "#022C22",
+    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
     letterSpacing: -0.2,
@@ -573,12 +598,12 @@ const styles = StyleSheet.create({
   footerDivider: {
     width: "100%",
     height: 1,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E0E0E0",
     marginBottom: 16,
   },
   footerText: {
     fontSize: 12,
-    color: "#6B9F88",
+    color: "#9E9E9E",
     textAlign: "center",
   },
 });
