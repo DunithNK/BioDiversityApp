@@ -126,6 +126,8 @@ class AssessmentResponse(BaseModel):
 
 
 class PredictionResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     result: str
     confidence: float
     model_loaded: bool
