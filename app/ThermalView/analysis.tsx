@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Animated,
@@ -11,6 +11,8 @@ import {
 
 export default function ThermalAnalysis() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
 
@@ -29,16 +31,35 @@ export default function ThermalAnalysis() {
     ]).start();
   }, []);
 
-  // 🔬 MOCK ANALYSIS VALUES
+  // 🔒 SAFE PARAM PARSER (important for Expo Router)
+  const getParam = (value: string | string[] | undefined) => {
+    if (Array.isArray(value)) return value[0];
+    return value ?? "N/A";
+  };
+
+  // 🧠 REAL BACKEND DATA
   const animal = "Sri Lankan Leopard";
-  const avgTemp = "38.6 °C";
-  const tsi = "0.27";
-  const status = "Normal";
-  const decision = "Releasing Pre-Requisites";
+  const avgTemp = `${getParam(params.mean)} °C`;
+  const tsi = getParam(params.tsi);
+  const status = getParam(params.status);
+  const decision = getParam(params.decision);
+
+  // 🔬 Dynamic recommendation based on AI result
+  const getRecommendation = () => {
+    if (status === "Normal") {
+      return "Thermal indicators are within normal physiological limits. No signs of heat stress detected.";
+    } else if (status === "Moderate") {
+      return "Moderate thermal stress detected. Continued monitoring is recommended before release.";
+    } else if (status === "High") {
+      return "High physiological stress detected. Immediate intervention and rehabilitation monitoring required.";
+    } else {
+      return "Analyzing thermal data from AI backend.";
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -48,7 +69,6 @@ export default function ThermalAnalysis() {
             transform: [{ translateY: slideAnim }],
           }}
         >
-          {/* Header Section */}
           <View style={styles.headerSection}>
             <Text style={styles.title}>Thermal Analysis Report</Text>
             <View style={styles.statusBadge}>
@@ -57,29 +77,22 @@ export default function ThermalAnalysis() {
             </View>
           </View>
 
-          {/* Main Results Card */}
           <View style={styles.card}>
             <Info label="DETECTED ANIMAL" value={animal} icon="🐆" />
             <Info label="AVERAGE TEMPERATURE" value={avgTemp} icon="🌡️" />
             <Info label="THERMAL STRESS INDEX (TSI)" value={tsi} icon="📊" />
             <Info label="HEALTH STATUS" value={status} icon="✅" />
-            
-            {/* WildSense Accent Bar */}
             <View style={[styles.accentBar, { backgroundColor: "#E74C3C" }]} />
           </View>
 
-          {/* Recommendation Section */}
           <View style={styles.recommendationCard}>
             <Text style={styles.recoTitle}>🔬 AI Recommendation</Text>
-            <Text style={styles.recoText}>
-              Thermal indicators are within normal physiological limits.
-              No signs of heat stress detected.
-            </Text>
+            <Text style={styles.recoText}>{getRecommendation()}</Text>
           </View>
 
+          {/* 🔥 REAL DECISION FROM BACKEND */}
           <Text style={styles.decisionText}>{decision}</Text>
 
-          {/* Navigation Links (Styled as WildSense Menu) */}
           <View style={styles.navGroup}>
             <TouchableOpacity
               style={styles.navItem}
@@ -106,12 +119,13 @@ export default function ThermalAnalysis() {
             </TouchableOpacity>
           </View>
 
-          {/* Primary Action */}
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => router.replace("ThermalView/index" as any)}
           >
-            <Text style={styles.primaryButtonText}>Analyze Another Image</Text>
+            <Text style={styles.primaryButtonText}>
+              Analyze Another Image
+            </Text>
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
@@ -119,7 +133,15 @@ export default function ThermalAnalysis() {
   );
 }
 
-function Info({ label, value, icon }: { label: string; value: string; icon: string }) {
+function Info({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+}) {
   return (
     <View style={styles.infoRow}>
       <View style={styles.infoIconBg}>
@@ -134,19 +156,13 @@ function Info({ label, value, icon }: { label: string; value: string; icon: stri
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0A1F17", // WildSense BG
-  },
+  container: { flex: 1, backgroundColor: "#0A1F17" },
   scrollContent: {
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  headerSection: {
-    alignItems: "center",
-    marginBottom: 30,
-  },
+  headerSection: { alignItems: "center", marginBottom: 30 },
   title: {
     fontSize: 32,
     fontWeight: "800",
@@ -161,7 +177,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E74C3C", // Red accent for Thermal
+    borderColor: "#E74C3C",
   },
   statusDot: {
     width: 6,
@@ -200,16 +216,12 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   label: {
-    color: "#8BC4A9", // WildSense Secondary Text
+    color: "#8BC4A9",
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1,
   },
-  value: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
-  },
+  value: { color: "#FFFFFF", fontSize: 18, fontWeight: "600" },
   accentBar: {
     position: "absolute",
     bottom: 0,
@@ -231,11 +243,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 8,
   },
-  recoText: {
-    color: "#8BC4A9",
-    fontSize: 14,
-    lineHeight: 20,
-  },
+  recoText: { color: "#8BC4A9", fontSize: 14, lineHeight: 20 },
   decisionText: {
     color: "#2ECC71",
     fontSize: 22,
@@ -245,9 +253,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1,
   },
-  navGroup: {
-    marginBottom: 30,
-  },
+  navGroup: { marginBottom: 30 },
   navItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -274,10 +280,6 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: "center",
-    shadowColor: "#2ECC71",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
   },
   primaryButtonText: {
     color: "#0A1F17",

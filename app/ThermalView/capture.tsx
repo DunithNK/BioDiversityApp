@@ -17,6 +17,9 @@ export default function ThermalCapture() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
 
+  // 🔥 CORRECT WIFI IP (NOT localhost, NOT 172.x hotspot)
+  const BACKEND_URL = "http://192.168.1.14:8000";
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -32,11 +35,10 @@ export default function ThermalCapture() {
     ]).start();
   }, []);
 
-  // 🔥 OPEN FLIR ONE APP (DIRECT + FALLBACK)
+  // 🔥 OPEN FLIR ONE APP
   const openFlirApp = async () => {
     const flirScheme = "flirone://";
-    const appStoreUrl =
-      "https://apps.apple.com/lk/app/flir-one/id875842742";
+    const appStoreUrl = "https://apps.apple.com/lk/app/flir-one/id875842742";
 
     try {
       const supported = await Linking.canOpenURL(flirScheme);
@@ -53,30 +55,112 @@ export default function ThermalCapture() {
     }
   };
 
-  // 📁 SELECT THERMAL IMAGE FROM GALLERY
-const selectThermalImage = async () => {
-  const permission =
-    await ImagePicker.requestMediaLibraryPermissionsAsync();
+  // 🧠 FINAL STABLE API CALL (EXPO + FASTAPI COMPATIBLE)
+  const analyzeThermalImage = async (imageUri: string) => {
+    try {
+      console.log("📡 Uploading image to backend:", imageUri);
 
-  if (!permission.granted) {
-    Alert.alert(
-      "Permission Required",
-      "Please allow access to select a thermal image."
-    );
-    return;
-  }
+      const formData = new FormData();
 
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    quality: 1,
-  });
+      // 🔥 CRITICAL FIX FOR iOS + Expo FormData
+      const filename = imageUri.split("/").pop() || "thermal.jpg";
+      const fileExtension = filename.split(".").pop();
+      const mimeType = fileExtension
+        ? `image/${fileExtension}`
+        : "image/jpeg";
 
-  if (!result.canceled) {
-    // ✅ OPEN ANALYSIS PAGE AFTER UPLOAD
-    router.replace("ThermalView/analysis");
-  }
-};
+      formData.append("file", {
+        uri: imageUri,
+        name: filename,
+        type: mimeType,
+      } as any);
 
+      const response = await fetch(
+        `${BACKEND_URL}/api/thermal/analyze-thermal`,
+        {
+          method: "POST",
+          body: formData,
+          // ❗ DO NOT set Content-Type manually in React Native
+        }
+      );
+
+      console.log("📡 Response status:", response.status);
+
+      // Read raw response first (prevents silent crash)
+      const rawText = await response.text();
+      console.log("📦 Raw backend response:", rawText);
+
+      if (!response.ok) {
+        throw new Error(`Backend error: ${rawText}`);
+      }
+
+      // Safely parse JSON
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseError) {
+        console.log("❌ JSON Parse Error:", parseError);
+        throw new Error("Invalid JSON from backend");
+      }
+
+      console.log("✅ Parsed backend data:", data);
+      return data;
+    } catch (error: any) {
+      console.error("❌ FULL FETCH ERROR:", error);
+
+      Alert.alert(
+        "Connection Error",
+        "Frontend could not process backend response.\n\nCheck:\n1. Backend running\n2. Same WiFi (192.168.1.14)\n3. Correct API URL"
+      );
+
+      throw error;
+    }
+  };
+
+  // 📁 SELECT IMAGE & SEND TO BACKEND
+  const selectThermalImage = async () => {
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Permission Required",
+        "Please allow gallery access to upload thermal images."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"], // ✅ FIXED (no deprecated API)
+      quality: 1,
+    });
+
+    if (result.canceled) return;
+
+    const imageUri = result.assets[0].uri;
+
+    try {
+      // 🚀 CALL FASTAPI BACKEND
+      const analysisResult = await analyzeThermalImage(imageUri);
+
+      console.log("🔥 FINAL ANALYSIS RESULT:", analysisResult);
+
+      // 🎯 NAVIGATE WITH REAL BACKEND VALUES
+      router.replace({
+        pathname: "/ThermalView/analysis",
+        params: {
+          mean: String(analysisResult.average_temperature ?? "0"),
+          tsi: String(analysisResult.tsi ?? "0"),
+          status: String(analysisResult.stress_level ?? "Unknown"),
+          decision: String(
+            analysisResult.release_decision ?? "Pending Assessment"
+          ),
+        },
+      });
+    } catch (error) {
+      console.log("⚠️ Navigation stopped due to API error");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -84,7 +168,6 @@ const selectThermalImage = async () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <Animated.View
           style={[
             styles.header,
@@ -101,11 +184,10 @@ const selectThermalImage = async () => {
           <Text style={styles.title}>Thermal Image Capture</Text>
           <Text style={styles.subtitle}>
             Capture wildlife thermal images using a FLIR ONE device or upload
-            previously captured thermal images for analysis
+            previously captured thermal images for AI analysis
           </Text>
         </Animated.View>
 
-        {/* Instructions */}
         <View style={styles.instructionCard}>
           <Text style={styles.step}>1</Text>
           <Text style={styles.instructionText}>
@@ -116,15 +198,11 @@ const selectThermalImage = async () => {
         <View style={styles.instructionCard}>
           <Text style={styles.step}>2</Text>
           <Text style={styles.instructionText}>
-            Upload the thermal image for analysis
+            Upload the thermal image for AI analysis
           </Text>
         </View>
 
-        {/* Actions */}
-        <TouchableOpacity
-          onPress={openFlirApp}
-          style={styles.flirButton}
-        >
+        <TouchableOpacity onPress={openFlirApp} style={styles.flirButton}>
           <Text style={styles.buttonText}>Open FLIR ONE App</Text>
         </TouchableOpacity>
 
@@ -137,9 +215,8 @@ const selectThermalImage = async () => {
           <Text style={styles.buttonText}>Upload Thermal Image</Text>
         </TouchableOpacity>
 
-        {/* Footer */}
         <Text style={styles.footerText}>
-          🔒 Images used only for research analysis
+          🔒 Images used only for research AI analysis
         </Text>
       </ScrollView>
     </View>
@@ -147,18 +224,9 @@ const selectThermalImage = async () => {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0A1F17",
-  },
-  scrollContent: {
-    padding: 20,
-    paddingTop: 60,
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 30,
-  },
+  container: { flex: 1, backgroundColor: "#0A1F17" },
+  scrollContent: { padding: 20, paddingTop: 60 },
+  header: { alignItems: "center", marginBottom: 30 },
   iconCircle: {
     width: 70,
     height: 70,
@@ -168,9 +236,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 16,
   },
-  icon: {
-    fontSize: 32,
-  },
+  icon: { fontSize: 32 },
   title: {
     fontSize: 26,
     fontWeight: "700",
@@ -178,11 +244,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: "center",
   },
-  subtitle: {
-    fontSize: 14,
-    color: "#8BC4A9",
-    textAlign: "center",
-  },
+  subtitle: { fontSize: 14, color: "#8BC4A9", textAlign: "center" },
   instructionCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -197,10 +259,7 @@ const styles = StyleSheet.create({
     color: "#E74C3C",
     marginRight: 10,
   },
-  instructionText: {
-    fontSize: 14,
-    color: "#CFFCF2",
-  },
+  instructionText: { fontSize: 14, color: "#CFFCF2" },
   flirButton: {
     backgroundColor: "#E74C3C",
     padding: 16,
@@ -214,16 +273,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
   },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#081417",
-  },
-  orText: {
-    color: "#6B9F88",
-    textAlign: "center",
-    marginVertical: 12,
-  },
+  buttonText: { fontSize: 16, fontWeight: "600", color: "#081417" },
+  orText: { color: "#6B9F88", textAlign: "center", marginVertical: 12 },
   footerText: {
     color: "#6B9F88",
     textAlign: "center",
