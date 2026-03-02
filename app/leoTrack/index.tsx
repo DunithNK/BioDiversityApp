@@ -4,6 +4,7 @@ import * as Location from "expo-location";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   ScrollView,
@@ -21,11 +22,14 @@ type AlertItem = {
   longitude: number;
 };
 
-const BACKEND_URL = "http://172.20.10.2:8000";
+const BACKEND_URL = "http://10.0.2.2:8000";
 
 export default function LeoTrackScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [creatingAlert, setCreatingAlert] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'analyzing' | 'success' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
   const [recentAlerts, setRecentAlerts] = useState<AlertItem[]>([]);
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
 
@@ -63,11 +67,23 @@ export default function LeoTrackScreen() {
       return null;
     }
 
-    const loc = await Location.getCurrentPositionAsync({});
-    return {
-      latitude: loc.coords.latitude,
-      longitude: loc.coords.longitude,
-    };
+    try {
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 5000,
+      });
+      return {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      };
+    } catch (error) {
+      // Use default Gal Oya National Park coordinates if location unavailable
+      console.log("Using default location: Gal Oya National Park");
+      return {
+        latitude: 7.1,
+        longitude: 81.4,
+      };
+    }
   };
 
   /* -------------------- Backend sync -------------------- */
@@ -111,54 +127,85 @@ export default function LeoTrackScreen() {
   };
 
   const addRecentAlert = async (source: "Camera" | "Gallery") => {
+    setCreatingAlert(true);
+    setStatusMessage('📍 Getting location...');
+    
     const coords = await getCurrentLocation();
-    if (!coords) return;
+    if (!coords) {
+      setCreatingAlert(false);
+      return;
+    }
 
+    setStatusMessage('💾 Creating alert...');
     const alert_id = generateAlertId();
     setCurrentAlertId(alert_id);
 
     await saveAlertToBackend(alert_id, coords, source);
     fetchAlertsFromBackend();
+    
+    setCreatingAlert(false);
+    setStatusMessage('✅ Alert created successfully!');
   };
 
   /* -------------------- Image handlers -------------------- */
 
   const detectLeopard = async (uri: string) => {
-    // Convert to clean JPEG before upload
-    const manipulated = await ImageManipulator.manipulateAsync(uri, [], {
-      compress: 1,
-      format: ImageManipulator.SaveFormat.JPEG,
-    });
-
-    const formData = new FormData();
-    formData.append("file", {
-      uri: manipulated.uri,
-      name: "photo.jpg",
-      type: "image/jpeg",
-    } as any);
-
+    setUploadStatus('uploading');
+    setStatusMessage('Uploading image...');
+    
     try {
+      // Convert to clean JPEG before upload
+      const manipulated = await ImageManipulator.manipulateAsync(uri, [], {
+        compress: 1,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
+
+      const formData = new FormData();
+      formData.append("file", {
+        uri: manipulated.uri,
+        name: "photo.jpg",
+        type: "image/jpeg",
+      } as any);
+
+      setUploadStatus('analyzing');
+      setStatusMessage('Analyzing with AI...');
+      
       const res = await fetch(`${BACKEND_URL}/predict`, {
         method: "POST",
         body: formData,
       });
+      
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+      
       const data = await res.json();
-
       console.log("Backend response:", data);
 
       // Detection now depends only on backend result
       if (data.result === "Leopard Detected") {
+        setUploadStatus('success');
+        setStatusMessage(`✅ Leopard detected! Confidence: ${(data.confidence * 100).toFixed(1)}%`);
+        Alert.alert(
+          "🐆 Leopard Detected!",
+          `Confidence: ${(data.confidence * 100).toFixed(1)}%\n\nAlert has been created.`,
+          [{ text: "OK" }]
+        );
         return true;
       } else {
+        setUploadStatus('error');
+        setStatusMessage('❌ Not a leopard');
         Alert.alert(
           "Leopard Not Detected",
-          "This image does not contain a leopard. Please upload a valid leopard image.",
+          `This image does not contain a leopard.\n\nConfidence: ${(data.confidence * 100).toFixed(1)}%`,
         );
         return false;
       }
     } catch (error) {
       console.log("Detection error:", error);
-      Alert.alert("Server Error", "Failed to connect to detection server.");
+      setUploadStatus('error');
+      setStatusMessage('❌ Connection failed');
+      Alert.alert("Server Error", "Failed to connect to detection server. Please check your connection.");
       return false;
     }
   };
@@ -178,6 +225,8 @@ export default function LeoTrackScreen() {
     if (!result.canceled) {
       const uri = result.assets[0].uri;
 
+      setUploadStatus('idle');
+      setStatusMessage('');
       setLoading(true);
 
       const isLeopard = await detectLeopard(uri);
@@ -206,6 +255,8 @@ export default function LeoTrackScreen() {
     if (!result.canceled) {
       const uri = result.assets[0].uri;
 
+      setUploadStatus('idle');
+      setStatusMessage('');
       setLoading(true);
 
       const isLeopard = await detectLeopard(uri);
@@ -264,13 +315,35 @@ export default function LeoTrackScreen() {
           </Text>
 
           {/* Status Badge */}
-          {imageUri && (
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Image Ready for Analysis</Text>
+          {(imageUri || uploadStatus !== 'idle' || creatingAlert) && (
+            <View style={[
+              styles.statusBadge,
+              uploadStatus === 'success' && styles.statusBadgeSuccess,
+              uploadStatus === 'error' && styles.statusBadgeError,
+              (uploadStatus === 'uploading' || uploadStatus === 'analyzing' || creatingAlert) && styles.statusBadgeLoading
+            ]}>
+              <View style={[
+                styles.statusDot,
+                uploadStatus === 'success' && styles.statusDotSuccess,
+                uploadStatus === 'error' && styles.statusDotError,
+                (uploadStatus === 'uploading' || uploadStatus === 'analyzing' || creatingAlert) && styles.statusDotLoading
+              ]} />
+              <Text style={styles.statusText}>
+                {statusMessage || 'Image Ready for Analysis'}
+              </Text>
             </View>
           )}
         </Animated.View>
+
+        {/* Loading Overlay */}
+        {(uploadStatus === 'uploading' || uploadStatus === 'analyzing' || creatingAlert) && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingCard}>
+              <ActivityIndicator size="large" color="#2ECC71" />
+              <Text style={styles.loadingText}>{statusMessage}</Text>
+            </View>
+          </View>
+        )}
 
         {/* Recent Alerts Card */}
         <Animated.View style={[styles.alertCard, { opacity: fadeAnim }]}>
@@ -397,14 +470,14 @@ export default function LeoTrackScreen() {
           <TouchableOpacity
             style={[
               styles.continueButton,
-              (!imageUri || loading) && styles.continueButtonDisabled,
+              (!imageUri || !currentAlertId || loading || creatingAlert) && styles.continueButtonDisabled,
             ]}
             onPress={handleContinue}
-            disabled={!imageUri || loading}
+            disabled={!imageUri || !currentAlertId || loading || creatingAlert}
             activeOpacity={0.85}
           >
             <Text style={styles.continueText}>
-              {loading ? "🔄 Analyzing..." : "Continue to Analysis →"}
+              {loading || creatingAlert ? "🔄 Processing..." : "Continue to Analysis →"}
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -520,6 +593,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#1B5E20",
     fontWeight: "700",
+  },
+  statusBadgeSuccess: {
+    backgroundColor: "#E8F5E9",
+    borderColor: "#2ECC71",
+  },
+  statusBadgeError: {
+    backgroundColor: "#FFEBEE",
+    borderColor: "#EF5350",
+  },
+  statusBadgeLoading: {
+    backgroundColor: "#E3F2FD",
+    borderColor: "#42A5F5",
+  },
+  statusDotSuccess: {
+    backgroundColor: "#2ECC71",
+  },
+  statusDotError: {
+    backgroundColor: "#EF5350",
+  },
+  statusDotLoading: {
+    backgroundColor: "#42A5F5",
   },
 
   // Alert Card
@@ -806,5 +900,35 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#FFFFFF",
     marginLeft: 10,
+  },
+
+  // Loading Overlay
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
   },
 });

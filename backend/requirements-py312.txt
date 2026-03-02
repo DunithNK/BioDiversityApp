@@ -1,0 +1,27 @@
+# Alternative Requirements for Python 3.12+
+# Use this if requirements.txt fails with newer Python versions
+
+# Core Backend Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.12
+pydantic==2.9.2
+
+# Machine Learning & Computer Vision
+# For Python 3.12+, use the latest TensorFlow or nightly builds
+tensorflow>=2.16.0  # Will install latest compatible version
+pillow>=10.0.0
+numpy>=1.26.0
+opencv-python>=4.9.0
+scikit-learn>=1.4.0
+
+# Database
+sqlalchemy==2.0.36
+aiosqlite==0.20.0
+
+# Utilities
+python-dotenv==1.0.1
+requests>=2.31.0
+
+# Note: If TensorFlow still fails, try:
+# pip install tf-nightly

@@ -101,6 +101,11 @@ pyvenv.cfg
 backend/.env
 backend/logs/
 backend/tmp/
+backend/detaset/
+backend/prepared_dataset/
+backend/models/
+backend/wildlife_tracking.db
+backend/*.db
 
 # ==================================================
 # Optional / Examples

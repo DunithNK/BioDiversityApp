@@ -74,29 +74,7 @@ export default function AlertMapScreen() {
           return { ...alert, severity: undefined };
         })
       );
-
-      setAlerts(alertsWithAssessments);
-    } catch {
-      const cached = await AsyncStorage.getItem(STORAGE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        setAlerts(parsed.filter(isInsideGalOya));
-      } else {
-        Alert.alert("Offline", "No cached map data available");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* ------------------ GEO-FENCE CHECK ------------------ */
-  const isInsideGalOya = (a: AlertItem) =>
-    a.latitude >= LAT_MIN &&
-    a.latitude <= LAT_MAX &&
-    a.longitude >= LON_MIN &&
-    a.longitude <= LON_MAX;
-
-  /* ------------------ SEVERITY COLOR MAPPING ------------------ */
+/* ------------------ SEVERITY COLOR MAPPING ------------------ */
   const getSeverityColor = (severity?: string) => {
     switch (severity) {
       case "Critical":
@@ -142,76 +120,7 @@ export default function AlertMapScreen() {
         </View>
       </View>
     );
-  }
-
-  // Condition 1: Only show map if leopard detections exist
-  if (alerts.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🗺️</Text>
-          <Text style={styles.emptyTitle}>Gal Oya Region Inactive</Text>
-          <Text style={styles.emptySubtitle}>
-            The Gal Oya map is only displayed when leopard detection events occur.
-          </Text>
-          <Text style={styles.emptyInfo}>
-            Upload a leopard image to activate this area.
-          </Text>
-          <TouchableOpacity 
-            style={styles.emptyBackBtn} 
-            onPress={() => router.back()}
-          >
-            <Text style={styles.emptyBackText}>← Return to Tracker</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // Show map with color-coded hotspots
-  return (
-    <View style={styles.container}>
-      <MapView
-        style={styles.map}
-        initialRegion={GAL_OYA_REGION}
-        minZoomLevel={10}
-        maxZoomLevel={14}
-        pitchEnabled={false}
-        rotateEnabled={false}
-        scrollEnabled={false}
-        zoomEnabled={true}
-        showsBuildings={false}
-        showsTraffic={false}
-        showsIndoors={false}
-        mapType="standard"
-      >
-        {alerts.map((alert) => {
-          const color = getSeverityColor(alert.severity);
-          const icon = getSeverityIcon(alert.severity);
-          
-          return (
-            <Marker
-              key={alert.alert_id}
-              coordinate={{
-                latitude: alert.latitude,
-                longitude: alert.longitude,
-              }}
-              onPress={() =>
-                router.push(`/leoTrack/result?alertId=${alert.alert_id}` as any)
-              }
-            >
-              <View style={[styles.marker, { backgroundColor: color }]}>
-                <Text style={styles.markerIcon}>{icon}</Text>
-                <Text style={styles.markerEmoji}>🐆</Text>
-              </View>
-            </Marker>
-          );
-        })}
-      </MapView>
-
-      {/* Header Overlay */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🗺️ Gal Oya Leopard Map (Active)</Text>
+  }🗺️ Gal Oya Leopard Map (Active)</Text>
         <Text style={styles.headerSubtitle}>
           {alerts.length} Verified Detection{alerts.length !== 1 ? "s" : ""} • Health Assessment Hotspots
         </Text>
@@ -236,31 +145,6 @@ export default function AlertMapScreen() {
             <Text style={styles.legendText}>Moderate</Text>
           </View>
           <View style={styles.legendItem}>
-            <Text style={styles.legendIcon}>🟢</Text>
-            <Text style={styles.legendText}>Low/None</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Back Button */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Text style={styles.backText}>← Back to Tracker</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-/* ------------------ STYLES ------------------ */
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0A1F17",
-  },
-  map: {
-    flex: 1,
-  },
-  marker: {
     padding: 10,
     borderRadius: 25,
     borderWidth: 3,
@@ -409,6 +293,132 @@ const styles = StyleSheet.create({
   emptyBackText: {
     color: "#2ECC71",
     fontWeight: "800",
+    fontSize: 16
+          return (
+            <Marker
+              key={alert.alert_id}
+              coordinate={{
+                latitude: alert.latitude,
+                longitude: alert.longitude,
+              }}
+              onPress={() =>
+                router.push(`/leoTrack/result?alertId=${alert.alert_id}` as any)
+              }
+            >
+              <View style={[styles.marker, { backgroundColor: color }]}>
+                <Text style={styles.markerIcon}>{icon}</Text>
+                <Text style={styles.markerEmoji}>🐆</Text>
+              </View>
+            </Marker>
+          );
+        }
+  return (
+    <View style={styles.container}>
+      <MapView
+        style={styles.map}
+        initialRegion={GAL_OYA_REGION}
+        minZoomLevel={10}
+        maxZoomLevel={14}
+        pitchEnabled={false}
+        rotateEnabled={false}
+        scrollEnabled={false} // 🔒 lock map
+        zoomEnabled={true} // controlled zoom only
+        showsBuildings={false}
+        showsTraffic={false}
+        showsIndoors={false}
+        mapType="standard"
+      >
+        {alerts.map((alert) => (
+          <Marker
+            key={alert.alert_id}
+            coordinate={{
+              latitude: alert.latitude,
+              longitude: alert.longitude,
+            }}
+            onPress={() =>
+              router.push(`/leoTrack/result?alertId=${alert.alert_id}` as any)
+            }
+          >
+            <View style={styles.marker}>
+              <Text style={styles.markerIcon}>🐆</Text>
+            </View>
+          </Marker>
+        ))}
+      </MapView>
+
+      {/* Header Overlay */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Gal Oya Leopard Map</Text>
+        <Text style={styles.headerSubtitle}>
+          {alerts.length} Verified Detections (Restricted View)
+        </Text>
+      </View>
+
+      {/* Back Button */}
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <Text style={styles.backText}>← Back to Tracker</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+/* ------------------ STYLES ------------------ */
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0A1F17",
+  },
+  map: {
+    flex: 1,
+  },
+  marker: {
+    backgroundColor: "#1A3D2E",
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#2ECC71",
+  },
+  markerIcon: {
+    fontSize: 18,
+  },
+  header: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    right: 20,
+    alignItems: "center",
+    backgroundColor: "rgba(26, 61, 46, 0.95)",
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#2ECC71",
+  },
+  headerTitle: {
+    color: "#FFFFFF",
+    fontWeight: "800",
     fontSize: 16,
+  },
+  headerSubtitle: {
+    color: "#8BC4A9",
+    fontSize: 12,
+    marginTop: 4,
+  },
+  backBtn: {
+    position: "absolute",
+    bottom: 30,
+    left: 20,
+    right: 20,
+    backgroundColor: "#1A3D2E",
+    padding: 16,
+    borderRadius: 18,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2ECC71",
+  },
+  backText: {
+    color: "#2ECC71",
+    fontWeight: "800",
+    fontSize: 15,
   },
 });
