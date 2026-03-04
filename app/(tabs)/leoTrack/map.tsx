@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View, Switch } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 
 type AlertItem = {
@@ -22,7 +22,7 @@ type AlertWithAssessment = AlertItem & {
   severity?: "None" | "Low" | "Moderate" | "High" | "Critical";
 };
 
-const BACKEND_URL = "http://192.168.1.2:8000";
+const BACKEND_URL = "http://10.0.2.2:8000";
 const STORAGE_KEY = "CACHED_ALERTS";
 
 /* ------------------ GAL OYA SAFE BOUNDARY ------------------ */
@@ -96,6 +96,34 @@ export default function AlertMapScreen() {
   
   const insideCount = alerts.filter(a => a.is_outside !== true).length;
   const outsideCount = alerts.filter(a => a.is_outside === true).length;
+
+  /* ------------------ DYNAMIC MAP REGION ------------------ */
+  const getMapRegion = () => {
+    if (!showOutside || filteredAlerts.length === 0) {
+      return GAL_OYA_REGION; // Default Gal Oya view
+    }
+
+    // Calculate bounds for all visible alerts
+    const lats = filteredAlerts.map(a => a.latitude);
+    const lons = filteredAlerts.map(a => a.longitude);
+    
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLon = Math.min(...lons);
+    const maxLon = Math.max(...lons);
+    
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLon = (minLon + maxLon) / 2;
+    const latDelta = (maxLat - minLat) * 1.5; // Add 50% padding
+    const lonDelta = (maxLon - minLon) * 1.5;
+    
+    return {
+      latitude: centerLat,
+      longitude: centerLon,
+      latitudeDelta: Math.max(latDelta, 0.5), // Minimum zoom
+      longitudeDelta: Math.max(lonDelta, 0.5),
+    };
+  };
 
   /* ------------------ SEVERITY COLOR MAPPING ------------------ */
   const getSeverityColor = (severity?: string) => {
@@ -174,12 +202,12 @@ export default function AlertMapScreen() {
     <View style={styles.container}>
       <MapView
         style={styles.map}
-        initialRegion={GAL_OYA_REGION}
-        minZoomLevel={10}
-        maxZoomLevel={14}
+        region={getMapRegion()}
+        minZoomLevel={showOutside ? 5 : 10}
+        maxZoomLevel={18}
         pitchEnabled={false}
         rotateEnabled={false}
-        scrollEnabled={false}
+        scrollEnabled={showOutside}
         zoomEnabled={true}
         showsBuildings={false}
         showsTraffic={false}
@@ -187,9 +215,19 @@ export default function AlertMapScreen() {
         mapType="standard"
       >
         {filteredAlerts.map((alert) => {
-          const color = getSeverityColor(alert.severity);
-          const icon = getSeverityIcon(alert.severity);
-          const borderColor = alert.is_outside === true ? "#F97316" : "#2ECC71"; // Orange for outside, Green for inside
+          const isOutside = alert.is_outside === true;
+          const severityColor = getSeverityColor(alert.severity);
+          const severityIcon = getSeverityIcon(alert.severity);
+          
+          // Color scheme for markers - ONLY Gal Oya shows severity colors
+          const borderColor = isOutside ? "#F97316" : "#2ECC71"; // Orange border for outside, Green for inside
+          const markerBgColor = isOutside ? "#FFA500" : severityColor; // Plain orange for outside, severity color for inside
+          const displayIcon = isOutside ? "📍" : severityIcon; // Location pin for outside, severity icon for inside
+          
+          // Debug: Log outside markers
+          if (isOutside) {
+            console.log(`Outside marker: ${alert.alert_id} at ${alert.latitude}, ${alert.longitude}`);
+          }
           
           return (
             <Marker
@@ -202,9 +240,18 @@ export default function AlertMapScreen() {
                 router.push(`/leoTrack/result?alertId=${alert.alert_id}` as any)
               }
             >
-              <View style={[styles.marker, { backgroundColor: color, borderColor: borderColor }]}>
-                <Text style={styles.markerIcon}>{icon}</Text>
+              <View style={[styles.marker, { 
+                backgroundColor: markerBgColor, 
+                borderColor: borderColor, 
+                borderWidth: isOutside ? 4 : 3 // Thicker border for outside markers to make them more visible
+              }]}>
+                <Text style={styles.markerIcon}>{displayIcon}</Text>
                 <Text style={styles.markerEmoji}>🐆</Text>
+                {isOutside && (
+                  <View style={styles.outsideBadge}>
+                    <Text style={styles.outsideBadgeText}>⚠️</Text>
+                  </View>
+                )}
               </View>
             </Marker>
           );
@@ -213,13 +260,16 @@ export default function AlertMapScreen() {
 
       {/* Header Overlay */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🗺️ Gal Oya Leopard Map</Text>
+        <Text style={styles.headerTitle}>🗺️ {showOutside ? 'Sri Lanka' : 'Gal Oya'} Leopard Map</Text>
         <Text style={styles.headerSubtitle}>
           {showOutside 
-            ? `${filteredAlerts.length} Total (${insideCount} Inside, ${outsideCount} Outside)` 
+            ? `${filteredAlerts.length} Total (${insideCount} Inside 🟢, ${outsideCount} Outside 🟠)` 
             : `${insideCount} Gal Oya Detection${insideCount !== 1 ? "s" : ""}`
           }
         </Text>
+        {showOutside && (
+          <Text style={styles.headerNote}>📍 Scroll & zoom to explore</Text>
+        )}
       </View>
 
       {/* Toggle Filter */}
@@ -236,6 +286,7 @@ export default function AlertMapScreen() {
       {/* Legend */}
       <View style={styles.legend}>
         <Text style={styles.legendTitle}>Legend</Text>
+        <Text style={styles.legendSubtitle}>Severity (Inside Gal Oya):</Text>
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <Text style={styles.legendIcon}>🔴</Text>
@@ -257,20 +308,22 @@ export default function AlertMapScreen() {
           </View>
         </View>
         <View style={styles.legendDivider} />
+        <Text style={styles.legendSubtitle}>Location Markers:</Text>
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
-            <View style={styles.locationBadge}>
-              <View style={[styles.locationDot, { backgroundColor: "#2ECC71" }]} />
+            <View style={[styles.locationMarker, { backgroundColor: "#EF4444", borderColor: "#2ECC71" }]}>
+              <Text style={styles.locationMarkerEmoji}>🐆</Text>
             </View>
             <Text style={styles.legendText}>Gal Oya</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={styles.locationBadge}>
-              <View style={[styles.locationDot, { backgroundColor: "#F97316" }]} />
+            <View style={[styles.locationMarker, { backgroundColor: "#FFA500", borderColor: "#F97316" }]}>
+              <Text style={styles.locationMarkerEmoji}>🐆</Text>
             </View>
             <Text style={styles.legendText}>Outside</Text>
           </View>
         </View>
+        <Text style={styles.legendNote}>* Gal Oya markers show health severity colors</Text>
       </View>
 
       {/* Back Button */}
@@ -292,23 +345,46 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   marker: {
-    padding: 10,
-    borderRadius: 25,
+    padding: 12,
+    borderRadius: 28,
     borderWidth: 3,
     borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 10,
+    minWidth: 56,
+    minHeight: 56,
   },
   markerIcon: {
-    fontSize: 16,
+    fontSize: 20,
     marginBottom: 2,
   },
   markerEmoji: {
+    fontSize: 18,
+  },
+  outsideBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#DC2626",
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 8,
+  },
+  outsideBadgeText: {
     fontSize: 14,
   },
   header: {
@@ -333,6 +409,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 4,
   },
+  headerNote: {
+    color: "#F97316",
+    fontSize: 10,
+    marginTop: 4,
+    fontStyle: "italic",
+  },
   legend: {
     position: "absolute",
     top: 240,
@@ -348,6 +430,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 12,
     marginBottom: 8,
+  },
+  legendSubtitle: {
+    color: "#8BC4A9",
+    fontWeight: "600",
+    fontSize: 10,
+    marginBottom: 4,
+    marginTop: 4,
   },
   legendRow: {
     flexDirection: "row",
@@ -365,6 +454,12 @@ const styles = StyleSheet.create({
   legendText: {
     color: "#8BC4A9",
     fontSize: 10,
+  },
+  legendNote: {
+    color: "#8BC4A9",
+    fontSize: 9,
+    fontStyle: "italic",
+    marginTop: 6,
   },
   legendDivider: {
     height: 1,
@@ -386,6 +481,18 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  locationMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    marginRight: 6,
+  },
+  locationMarkerEmoji: {
+    fontSize: 18,
   },
   toggleContainer: {
     position: "absolute",
