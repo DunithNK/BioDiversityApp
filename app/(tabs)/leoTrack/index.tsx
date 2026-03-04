@@ -80,13 +80,38 @@ export default function LeoTrackScreen() {
       // Use default Gal Oya National Park coordinates if location unavailable
       console.log("Using default location: Gal Oya National Park");
       return {
-        latitude: 7.1,
+        latitude: 7.19,
         longitude: 81.4,
       };
     }
   };
 
   /* -------------------- Backend sync -------------------- */
+
+  const checkGeofence = async (coords: { latitude: number; longitude: number }) => {
+    try {
+      const res = await fetch(
+        `${BACKEND_URL}/check-location?latitude=${coords.latitude}&longitude=${coords.longitude}`,
+        { method: "POST" }
+      );
+      
+      if (!res.ok) {
+        console.warn("Geofence check failed, assuming inside park");
+        return { is_inside: true, distance_to_boundary_km: null };
+      }
+      
+      const data = await res.json();
+      return {
+        is_inside: data.is_inside,
+        distance_to_boundary_km: data.distance_to_boundary_km,
+        message: data.message,
+      };
+    } catch (error) {
+      console.warn("Geofence check error:", error);
+      // Assume inside park if check fails
+      return { is_inside: true, distance_to_boundary_km: null };
+    }
+  };
 
   const fetchAlertsFromBackend = async () => {
     try {
@@ -108,6 +133,8 @@ export default function LeoTrackScreen() {
     alert_id: string,
     coords: { latitude: number; longitude: number },
     source: "Camera" | "Gallery",
+    is_outside: boolean = false,
+    distance_to_boundary_km: number | null = null,
   ) => {
     try {
       await fetch(`${BACKEND_URL}/alert`, {
@@ -119,6 +146,8 @@ export default function LeoTrackScreen() {
           latitude: coords.latitude,
           longitude: coords.longitude,
           source,
+          is_outside,
+          distance_to_boundary_km,
         }),
       });
     } catch {
@@ -136,11 +165,71 @@ export default function LeoTrackScreen() {
       return;
     }
 
+    setStatusMessage('� Checking park boundary...');
+    const geofenceStatus = await checkGeofence(coords);
+    
+    // If outside Gal Oya National Park, show confirmation dialog
+    if (!geofenceStatus.is_inside) {
+      setCreatingAlert(false);
+      
+      return new Promise<void>((resolve) => {
+        Alert.alert(
+          "⚠️ Detection Outside Gal Oya National Park",
+          `This detection is ${geofenceStatus.distance_to_boundary_km?.toFixed(2) || 'several'} km from the park boundary.\n\n${geofenceStatus.message || ''}\n\nDo you want to continue and save this alert anyway?`,
+          [
+            {
+              text: "No, Cancel",
+              style: "cancel",
+              onPress: () => {
+                setStatusMessage('❌ Alert creation cancelled');
+                setTimeout(() => {
+                  setStatusMessage('');
+                  setUploadStatus('idle');
+                }, 2000);
+                resolve();
+              },
+            },
+            {
+              text: "Yes, Continue",
+              onPress: async () => {
+                setCreatingAlert(true);
+                setStatusMessage('💾 Creating alert...');
+                
+                const alert_id = generateAlertId();
+                setCurrentAlertId(alert_id);
+
+                await saveAlertToBackend(
+                  alert_id,
+                  coords,
+                  source,
+                  true, // is_outside = true
+                  geofenceStatus.distance_to_boundary_km
+                );
+                fetchAlertsFromBackend();
+                
+                setCreatingAlert(false);
+                setStatusMessage('✅ Alert created (outside park boundary)');
+                resolve();
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      });
+    }
+
+    // Inside park - proceed normally
     setStatusMessage('💾 Creating alert...');
     const alert_id = generateAlertId();
     setCurrentAlertId(alert_id);
 
-    await saveAlertToBackend(alert_id, coords, source);
+    await saveAlertToBackend(
+      alert_id,
+      coords,
+      source,
+      false, // is_outside = false
+      geofenceStatus.distance_to_boundary_km
+    );
     fetchAlertsFromBackend();
     
     setCreatingAlert(false);

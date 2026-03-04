@@ -23,3 +23,6 @@ greenlet>=3.0.0
 # Utilities
 python-dotenv==1.0.1
 requests>=2.31.0
+
+# Geospatial
+shapely>=2.0.0  # For geofence point-in-polygon checks

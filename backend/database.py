@@ -24,6 +24,8 @@ class Alert(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     source = Column(String, nullable=False)  # "Camera" or "Gallery"
+    is_outside = Column(Boolean, default=False, nullable=False)  # True if outside Gal Oya boundary
+    distance_to_boundary_km = Column(Float, nullable=True)  # Distance to park boundary in km
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
