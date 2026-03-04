@@ -1,13 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View, Switch } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 
 type AlertItem = {
   alert_id: string;
   latitude: number;
   longitude: number;
+  is_outside?: boolean;
+  distance_to_boundary_km?: number;
 };
 
 type AssessmentData = {
@@ -41,6 +43,7 @@ export default function AlertMapScreen() {
   const router = useRouter();
   const [alerts, setAlerts] = useState<AlertWithAssessment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showOutside, setShowOutside] = useState(false);
 
   useEffect(() => {
     loadAlerts();
@@ -56,12 +59,9 @@ export default function AlertMapScreen() {
       // Store raw alerts
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 
-      // Filter only Gal Oya alerts
-      const galOyaAlerts = data.filter(isInsideGalOya);
-
-      // Fetch assessment data for each alert to get severity
+      // Fetch assessment data for ALL alerts (we'll filter by toggle later)
       const alertsWithAssessments = await Promise.all(
-        galOyaAlerts.map(async (alert) => {
+        data.map(async (alert) => {
           try {
             const assessmentRes = await fetch(`${BACKEND_URL}/assessment/${alert.alert_id}`);
             if (assessmentRes.ok) {
@@ -80,7 +80,7 @@ export default function AlertMapScreen() {
       const cached = await AsyncStorage.getItem(STORAGE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        setAlerts(parsed.filter(isInsideGalOya));
+        setAlerts(parsed);
       } else {
         Alert.alert("Offline", "No cached map data available");
       }
@@ -89,12 +89,13 @@ export default function AlertMapScreen() {
     }
   };
 
-  /* ------------------ GEO-FENCE CHECK ------------------ */
-  const isInsideGalOya = (a: AlertItem) =>
-    a.latitude >= LAT_MIN &&
-    a.latitude <= LAT_MAX &&
-    a.longitude >= LON_MIN &&
-    a.longitude <= LON_MAX;
+  /* ------------------ FILTER ALERTS BY TOGGLE ------------------ */
+  const filteredAlerts = showOutside 
+    ? alerts // Show all alerts
+    : alerts.filter(a => !a.is_outside); // Show only Gal Oya alerts
+  
+  const insideCount = alerts.filter(a => !a.is_outside).length;
+  const outsideCount = alerts.filter(a => a.is_outside).length;
 
   /* ------------------ SEVERITY COLOR MAPPING ------------------ */
   const getSeverityColor = (severity?: string) => {
@@ -145,7 +146,7 @@ export default function AlertMapScreen() {
   }
 
   // Condition 1: Only show map if leopard detections exist
-  if (alerts.length === 0) {
+  if (filteredAlerts.length === 0 && !showOutside) {
     return (
       <View style={styles.container}>
         <View style={styles.emptyContainer}>
@@ -185,9 +186,10 @@ export default function AlertMapScreen() {
         showsIndoors={false}
         mapType="standard"
       >
-        {alerts.map((alert) => {
+        {filteredAlerts.map((alert) => {
           const color = getSeverityColor(alert.severity);
           const icon = getSeverityIcon(alert.severity);
+          const borderColor = alert.is_outside ? "#F97316" : "#2ECC71"; // Orange for outside, Green for inside
           
           return (
             <Marker
@@ -200,7 +202,7 @@ export default function AlertMapScreen() {
                 router.push(`/leoTrack/result?alertId=${alert.alert_id}` as any)
               }
             >
-              <View style={[styles.marker, { backgroundColor: color }]}>
+              <View style={[styles.marker, { backgroundColor: color, borderColor: borderColor, borderWidth: 3 }]}>
                 <Text style={styles.markerIcon}>{icon}</Text>
                 <Text style={styles.markerEmoji}>🐆</Text>
               </View>
@@ -211,15 +213,29 @@ export default function AlertMapScreen() {
 
       {/* Header Overlay */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🗺️ Gal Oya Leopard Map (Active)</Text>
+        <Text style={styles.headerTitle}>🗺️ Gal Oya Leopard Map</Text>
         <Text style={styles.headerSubtitle}>
-          {alerts.length} Verified Detection{alerts.length !== 1 ? "s" : ""} • Health Assessment Hotspots
+          {showOutside 
+            ? `${filteredAlerts.length} Total (${insideCount} Inside, ${outsideCount} Outside)` 
+            : `${insideCount} Gal Oya Detection${insideCount !== 1 ? "s" : ""}`
+          }
         </Text>
+      </View>
+
+      {/* Toggle Filter */}
+      <View style={styles.toggleContainer}>
+        <Text style={styles.toggleLabel}>Show Outside Detections</Text>
+        <Switch
+          value={showOutside}
+          onValueChange={setShowOutside}
+          trackColor={{ false: "#CBD5E1", true: "#F97316" }}
+          thumbColor={showOutside ? "#FFF" : "#FFF"}
+        />
       </View>
 
       {/* Legend */}
       <View style={styles.legend}>
-        <Text style={styles.legendTitle}>Severity Legend</Text>
+        <Text style={styles.legendTitle}>Legend</Text>
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <Text style={styles.legendIcon}>🔴</Text>
@@ -238,6 +254,21 @@ export default function AlertMapScreen() {
           <View style={styles.legendItem}>
             <Text style={styles.legendIcon}>🟢</Text>
             <Text style={styles.legendText}>Low/None</Text>
+          </View>
+        </View>
+        <View style={styles.legendDivider} />
+        <View style={styles.legendRow}>
+          <View style={styles.legendItem}>
+            <View style={styles.locationBadge}>
+              <View style={[styles.locationDot, { backgroundColor: "#2ECC71" }]} />
+            </View>
+            <Text style={styles.legendText}>Gal Oya</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={styles.locationBadge}>
+              <View style={[styles.locationDot, { backgroundColor: "#F97316" }]} />
+            </View>
+            <Text style={styles.legendText}>Outside</Text>
           </View>
         </View>
       </View>
@@ -304,7 +335,7 @@ const styles = StyleSheet.create({
   },
   legend: {
     position: "absolute",
-    top: 140,
+    top: 240,
     right: 20,
     backgroundColor: "rgba(26, 61, 46, 0.95)",
     padding: 12,
@@ -334,6 +365,45 @@ const styles = StyleSheet.create({
   legendText: {
     color: "#8BC4A9",
     fontSize: 10,
+  },
+  legendDivider: {
+    height: 1,
+    backgroundColor: "#2ECC71",
+    marginVertical: 8,
+    opacity: 0.3,
+  },
+  locationBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
+  },
+  locationDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  toggleContainer: {
+    position: "absolute",
+    top: 140,
+    left: 20,
+    backgroundColor: "rgba(26, 61, 46, 0.95)",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2ECC71",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  toggleLabel: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
   },
   backBtn: {
     position: "absolute",
