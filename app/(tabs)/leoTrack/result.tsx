@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 
 const BACKEND_URL = "http://10.0.2.2:8000";
 
@@ -174,6 +177,288 @@ export default function ResultScreen() {
         return "EMERGENCY: Immediate intervention required. Alert wildlife response team now.";
       default:
         return "Assessment pending. Please complete health evaluation.";
+    }
+  };
+
+  /* -------------------- PDF Report Generation -------------------- */
+  
+  const generatePDFReport = async () => {
+    if (!assessment) {
+      Alert.alert("Error", "No assessment data available to generate report.");
+      return;
+    }
+
+    try {
+      const currentDate = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const currentTime = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              body {
+                font-family: 'Helvetica', 'Arial', sans-serif;
+                padding: 40px;
+                background: #ffffff;
+                color: #212121;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 40px;
+                border-bottom: 4px solid ${getColorBySeverity(assessment.severity)};
+                padding-bottom: 20px;
+              }
+              .logo {
+                font-size: 48px;
+                margin-bottom: 10px;
+              }
+              .title {
+                font-size: 32px;
+                font-weight: bold;
+                color: #1B5E20;
+                margin-bottom: 8px;
+              }
+              .subtitle {
+                font-size: 14px;
+                color: #757575;
+              }
+              .severity-section {
+                background: ${getBgBySeverity(assessment.severity)};
+                border: 3px solid ${getBorderBySeverity(assessment.severity)};
+                border-radius: 16px;
+                padding: 30px;
+                margin: 30px 0;
+                text-align: center;
+              }
+              .severity-icon {
+                font-size: 64px;
+                margin-bottom: 15px;
+              }
+              .severity-label {
+                font-size: 14px;
+                color: #757575;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                margin-bottom: 10px;
+              }
+              .severity-value {
+                font-size: 42px;
+                font-weight: bold;
+                color: ${getColorBySeverity(assessment.severity)};
+                margin-bottom: 20px;
+              }
+              .score-row {
+                display: flex;
+                justify-content: center;
+                align-items: baseline;
+                margin-top: 15px;
+              }
+              .score-value {
+                font-size: 56px;
+                font-weight: bold;
+                color: ${getColorBySeverity(assessment.severity)};
+              }
+              .score-unit {
+                font-size: 24px;
+                color: #9E9E9E;
+                margin-left: 8px;
+              }
+              .section {
+                background: #FAFAFA;
+                border: 2px solid #E0E0E0;
+                border-left: 5px solid ${getColorBySeverity(assessment.severity)};
+                border-radius: 12px;
+                padding: 25px;
+                margin: 25px 0;
+              }
+              .section-title {
+                font-size: 20px;
+                font-weight: bold;
+                color: #1B5E20;
+                margin-bottom: 15px;
+                display: flex;
+                align-items: center;
+              }
+              .section-icon {
+                font-size: 24px;
+                margin-right: 10px;
+              }
+              .recommendation-text {
+                font-size: 15px;
+                line-height: 1.8;
+                color: #4A4A4A;
+              }
+              .details-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin-top: 15px;
+              }
+              .detail-item {
+                background: #ffffff;
+                border: 1px solid #E0E0E0;
+                border-radius: 10px;
+                padding: 15px;
+              }
+              .detail-label {
+                font-size: 11px;
+                color: #9E9E9E;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 5px;
+              }
+              .detail-value {
+                font-size: 16px;
+                font-weight: bold;
+                color: #212121;
+              }
+              .footer {
+                margin-top: 50px;
+                padding-top: 20px;
+                border-top: 2px solid #E0E0E0;
+                text-align: center;
+              }
+              .footer-text {
+                font-size: 12px;
+                color: #9E9E9E;
+              }
+              .timestamp {
+                font-size: 11px;
+                color: #BDBDBD;
+                margin-top: 10px;
+              }
+              .alert-box {
+                background: ${assessment.severity === "Critical" ? "#FFEBEE" : "#FFF8E1"};
+                border: 2px solid ${assessment.severity === "Critical" ? "#EF4444" : "#F59E0B"};
+                border-radius: 10px;
+                padding: 15px;
+                margin: 20px 0;
+                text-align: center;
+              }
+              .alert-text {
+                font-size: 14px;
+                font-weight: bold;
+                color: ${assessment.severity === "Critical" ? "#C62828" : "#F57C00"};
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="logo">🐆</div>
+              <div class="title">Leopard Health Assessment Report</div>
+              <div class="subtitle">Wildlife Tracking & Monitoring System</div>
+            </div>
+
+            ${assessment.severity === "Critical" || assessment.severity === "High" ? `
+              <div class="alert-box">
+                <div class="alert-text">⚠️ ${assessment.severity.toUpperCase()} PRIORITY - IMMEDIATE ATTENTION REQUIRED</div>
+              </div>
+            ` : ""}
+
+            <div class="severity-section">
+              <div class="severity-icon">${getIconBySeverity(assessment.severity)}</div>
+              <div class="severity-label">Severity Level</div>
+              <div class="severity-value">${assessment.severity}</div>
+              <div class="score-row">
+                <span class="score-value">${assessment.score}</span>
+                <span class="score-unit">/ 100</span>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">
+                <span class="section-icon">📌</span>
+                Recommendation
+              </div>
+              <div class="recommendation-text">${getRecommendation(assessment.severity)}</div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">
+                <span class="section-icon">📊</span>
+                Assessment Details
+              </div>
+              <div class="details-grid">
+                <div class="detail-item">
+                  <div class="detail-label">🆔 Alert ID</div>
+                  <div class="detail-value">${alertId?.slice(-8).toUpperCase()}</div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">📈 Priority Level</div>
+                  <div class="detail-value" style="color: ${getColorBySeverity(assessment.severity)}">${assessment.severity}</div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">📊 Risk Score</div>
+                  <div class="detail-value">${assessment.score} / 100</div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">✅ Status</div>
+                  <div class="detail-value">Assessment Completed</div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">📅 Assessment Date</div>
+                  <div class="detail-value">${currentDate}</div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">🕒 Time</div>
+                  <div class="detail-value">${currentTime}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="footer">
+              <div class="footer-text">🔒 This report is generated securely for wildlife monitoring purposes</div>
+              <div class="footer-text" style="margin-top: 8px;">Gal Oya National Park - Leopard Conservation Program</div>
+              <div class="timestamp">Generated on ${currentDate} at ${currentTime}</div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      // Generate PDF
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+        base64: false,
+      });
+
+      Alert.alert(
+        "Report Generated",
+        "Your assessment report has been created successfully.",
+        [
+          {
+            text: "View & Share",
+            onPress: async () => {
+              if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(uri, {
+                  mimeType: "application/pdf",
+                  dialogTitle: "Share Assessment Report",
+                  UTI: "com.adobe.pdf",
+                });
+              } else {
+                Alert.alert("Error", "Sharing is not available on this device");
+              }
+            },
+          },
+          { text: "OK", style: "cancel" },
+        ]
+      );
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      Alert.alert("Error", "Failed to generate PDF report. Please try again.");
     }
   };
 
@@ -433,6 +718,15 @@ export default function ResultScreen() {
             activeOpacity={0.85}
           >
             <Text style={styles.secondaryText}>View History</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.reportButton}
+            onPress={generatePDFReport}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.reportIcon}>📄</Text>
+            <Text style={styles.reportText}>Generate PDF Report</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -838,6 +1132,32 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: "#212121",
+    fontWeight: "700",
+    fontSize: 16,
+    letterSpacing: -0.2,
+  },
+  reportButton: {
+    backgroundColor: "#1E88E5",
+    padding: 18,
+    borderRadius: 16,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 12,
+    borderWidth: 2,
+    borderColor: "#1565C0",
+    shadowColor: "#1E88E5",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  reportIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  reportText: {
+    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
     letterSpacing: -0.2,
