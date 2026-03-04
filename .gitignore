@@ -101,6 +101,9 @@ pyvenv.cfg
 backend/.env
 
 backend/detaset/
+backend/termalDetaset/
+backend/results/
+backend/uploads/
 
 # ==================================================
 # Optional / Examples
