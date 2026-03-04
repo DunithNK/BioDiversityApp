@@ -412,7 +412,13 @@ Update `BACKEND_URL` in these 5 files:
 4. **app/leoTrack/history.tsx** (if exists)
 5. **app/leoTrack/map.tsx** (if exists)
 
-Change from:
+Change from:shehansalitha@shehans-MacBook-Air-3 backend % mai
+n.py
+zsh: command not found: main.py
+shehansalitha@shehans-MacBook-Air-3 backend % 
+
+
+
 ```typescript
 const BACKEND_URL = "http://10.0.2.2:8000";
 ```

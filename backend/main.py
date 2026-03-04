@@ -22,6 +22,7 @@ from pathlib import Path
 from datetime import datetime
 
 from database import init_db, get_session, Alert, Assessment
+from geofence import is_inside_gal_oya, get_location_status, validate_coordinates
 
 # ===================== Configuration =====================
 APP_DIR = Path(__file__).parent
@@ -94,6 +95,8 @@ class AlertCreate(BaseModel):
     latitude: float
     longitude: float
     source: str
+    is_outside: bool = False
+    distance_to_boundary_km: Optional[float] = None
 
 
 class AlertResponse(BaseModel):
@@ -104,6 +107,8 @@ class AlertResponse(BaseModel):
     latitude: float
     longitude: float
     source: str
+    is_outside: bool
+    distance_to_boundary_km: Optional[float] = None
 
 
 class AssessmentCreate(BaseModel):
@@ -131,6 +136,7 @@ class PredictionResponse(BaseModel):
     result: str
     confidence: float
     model_loaded: bool
+    geofence_status: Optional[dict] = None  # Location validation info
 
 
 # ===================== Helper Functions =====================
@@ -255,7 +261,9 @@ async def create_alert(alert: AlertCreate, session: AsyncSession = Depends(get_s
             timestamp=alert.timestamp,
             latitude=alert.latitude,
             longitude=alert.longitude,
-            source=alert.source
+            source=alert.source,
+            is_outside=alert.is_outside,
+            distance_to_boundary_km=alert.distance_to_boundary_km
         )
         
         session.add(new_alert)
@@ -338,6 +346,38 @@ async def get_assessment(alert_id: str, session: AsyncSession = Depends(get_sess
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@app.post("/check-location")
+async def check_location(latitude: float, longitude: float):
+    """
+    Check if coordinates are inside Gal Oya National Park boundary
+    Returns location status for frontend validation
+    """
+    try:
+        # Validate coordinates
+        is_valid, msg = validate_coordinates(latitude, longitude)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=msg)
+        
+        # Get location status
+        location_status = get_location_status(latitude, longitude)
+        
+        return {
+            "valid": is_valid,
+            "is_inside": location_status["is_inside"],
+            "location": location_status["location"],
+            "distance_to_boundary_km": location_status["distance_to_boundary_km"],
+            "park_name": location_status["park_name"],
+            "coordinates": location_status["coordinates"],
+            "message": "Location is inside Gal Oya National Park" if location_status["is_inside"] 
+                      else f"Location is {location_status['distance_to_boundary_km']} km from Gal Oya boundary"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Location check error: {str(e)}")
 
 
 @app.get("/health")
