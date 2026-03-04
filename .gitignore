@@ -100,10 +100,46 @@ pyvenv.cfg
 
 backend/.env
 
+# Datasets (training images)
+backend/dataset/
 backend/detaset/
+backend/prepared_dataset/
 backend/termalDetaset/
 backend/results/
 backend/uploads/
+
+# SQLite databases (auto-generated on each machine)
+*.db
+*.sqlite
+*.sqlite3
+backend/*.db
+backend/*.sqlite
+
+# Training artifacts (generated during model training)
+backend/training_history.json
+backend/test_metrics.json
+backend/models/training_history.json
+backend/models/test_metrics.json
+
+# ==================================================
+# IDE / Editors
+# ==================================================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ==================================================
+# Jupyter Notebooks
+# ==================================================
+
+.ipynb_checkpoints/
+*.ipynb_checkpoints
 
 # ==================================================
 # Optional / Examples
