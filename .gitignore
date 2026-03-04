@@ -38,6 +38,26 @@ yarn-error.*
 
 app-example
 
+# Backend Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/*.pyc
+backend/uploads/
+backend/results/
+backend/.env
+
+# Large datasets (too big for git)
+backend/termalDetaset/
+
+# Pre-trained YOLO models (can be downloaded)
+backend/yolov8*.pt
+backend/runs/
+
+# Keep the trained model
+!backend/models/thermal_wildlife_detection/weights/best.pt
+
 # generated native folders
 /ios
 /android

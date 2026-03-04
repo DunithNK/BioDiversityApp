@@ -6,17 +6,25 @@ import {
   FlatList,
   Animated,
   Pressable,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { API_CONFIG } from "@/constants/api";
 
-const DATA = [
-  { id: "1", date: "2025-01-02", species: "Leopard", tsi: 0.28 },
-  { id: "2", date: "2025-01-03", species: "Sloth Bear", tsi: 0.48 },
-  { id: "3", date: "2025-01-04", species: "Leopard", tsi: 0.61 },
-];
+interface HistoryItem {
+  analysis_id: string;
+  timestamp: string;
+  tsi: number;
+  health_status: string;
+  leopard_mean_temp: number;
+}
 
 export default function HistoryScreen() {
   const [fadeAnim] = useState(new Animated.Value(0));
+  const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -25,107 +33,179 @@ export default function HistoryScreen() {
       duration: 800,
       useNativeDriver: true,
     }).start();
+    
+    fetchHistory();
   }, []);
 
-  // Logic to determine color based on species-specific thresholds
-  const getStatusColor = (species: string, tsi: number) => {
-    if (species === "Leopard") {
-      if (tsi <= 0.30) return "#2ECC71";
-      if (tsi <= 0.55) return "#F1C40F";
-      return "#E74C3C";
-    } else {
-      // Sloth Bear
-      if (tsi <= 0.35) return "#2ECC71";
-      if (tsi <= 0.65) return "#F1C40F";
-      return "#E74C3C";
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/history`);
+      const data = await response.json();
+      
+      if (data.success && data.history) {
+        setHistoryData(data.history);
+      }
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchHistory();
+  };
+
+  // Logic to determine color based on health status and TSI
+  const getStatusColor = (healthStatus: string, tsi: number) => {
+    if (healthStatus.includes("Normal")) return "#2ECC71";
+    if (healthStatus.includes("Mild")) return "#F1C40F";
+    if (healthStatus.includes("Moderate")) return "#F39C12";
+    if (healthStatus.includes("Critical")) return "#E74C3C";
+    
+    // Fallback to TSI-based coloring
+    if (tsi <= 0.05) return "#2ECC71";
+    if (tsi <= 0.10) return "#F1C40F";
+    if (tsi <= 0.15) return "#F39C12";
+    return "#E74C3C";
+  };
+
+  const formatDate = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return timestamp;
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#2ECC71" />
+        <Text style={{ color: '#8BC4A9', marginTop: 10 }}>Loading history...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         <View style={styles.header}>
           <Text style={styles.title}>Thermal History</Text>
-          <Text style={styles.subtitle}>GalOya Wildlife Stress Logs</Text>
+          <Text style={styles.subtitle}>
+            {historyData.length} Analysis Records
+          </Text>
         </View>
 
-        <FlatList
-          data={DATA}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listPadding}
-          renderItem={({ item }) => {
-            const statusColor = getStatusColor(item.species, item.tsi);
+        {historyData.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>📊</Text>
+            <Text style={styles.emptyText}>No analysis history yet</Text>
+            <Text style={styles.emptySubtext}>Upload a thermal image to get started</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={historyData}
+            keyExtractor={(item) => item.analysis_id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listPadding}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#2ECC71"
+              />
+            }
+            renderItem={({ item }) => {
+              const statusColor = getStatusColor(item.health_status, item.tsi);
 
-            return (
-              <Pressable
-                style={styles.card}
-                onPress={() =>
-                  router.push({
-                    pathname: "ThermalView/historyDetail",
-                    params: {
-                      species: item.species,
-                      tsi: item.tsi.toString(),
-                      date: item.date,
-                    },
-                  })
-                }
-              >
-                <View style={styles.cardTop}>
-                  <View style={styles.speciesContainer}>
-                    <Text style={styles.speciesIcon}>
-                      {item.species === "Leopard" ? "🐆" : "🐻"}
-                    </Text>
-                    <View>
-                      <Text style={styles.speciesName}>{item.species}</Text>
-                      <Text style={styles.dateText}>{item.date}</Text>
+              return (
+                <Pressable
+                  style={styles.card}
+                  onPress={() =>
+                    router.push({
+                      pathname: "ThermalView/historyDetail",
+                      params: {
+                        species: "Sri Lankan Leopard",
+                        tsi: item.tsi.toString(),
+                        date: formatDate(item.timestamp),
+                        status: item.health_status,
+                        temp: item.leopard_mean_temp.toString(),
+                      },
+                    })
+                  }
+                >
+                  <View style={styles.cardTop}>
+                    <View style={styles.speciesContainer}>
+                      <Text style={styles.speciesIcon}>🐆</Text>
+                      <View>
+                        <Text style={styles.speciesName}>Sri Lankan Leopard</Text>
+                        <Text style={styles.dateText}>{formatDate(item.timestamp)}</Text>
+                      </View>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.tsiBadge,
+                        {
+                          backgroundColor: statusColor + "20",
+                          borderColor: statusColor,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.tsiValue,
+                          { color: statusColor },
+                        ]}
+                      >
+                        TSI: {item.tsi.toFixed(4)}
+                      </Text>
                     </View>
                   </View>
 
-                  <View
-                    style={[
-                      styles.tsiBadge,
-                      {
-                        backgroundColor: statusColor + "20",
-                        borderColor: statusColor,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tsiValue,
-                        { color: statusColor },
-                      ]}
-                    >
-                      TSI: {item.tsi}
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>Status:</Text>
+                    <Text style={[styles.statusValue, { color: statusColor }]}>
+                      {item.health_status}
                     </Text>
                   </View>
-                </View>
 
-                {/* Subtle Progress Bar logic */}
-                <View style={styles.progressTrack}>
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>Temperature:</Text>
+                    <Text style={styles.statusValue}>
+                      {item.leopard_mean_temp.toFixed(2)}°C
+                    </Text>
+                  </View>
+
+                  {/* Subtle Progress Bar logic */}
+                  <View style={styles.progressTrack}>
+                    <View
+                      style={[
+                        styles.progressBar,
+                        {
+                          width: `${Math.min(item.tsi * 400, 100)}%`,
+                          backgroundColor: statusColor,
+                        },
+                      ]}
+                    />
+                  </View>
+
+                  {/* Accent Bar */}
                   <View
                     style={[
-                      styles.progressBar,
-                      {
-                        width: `${item.tsi * 100}%`,
-                        backgroundColor: statusColor,
-                      },
+                      styles.accentBar,
+                      { backgroundColor: statusColor },
                     ]}
                   />
-                </View>
-
-                {/* WildSense Accent Bar */}
-                <View
-                  style={[
-                    styles.accentBar,
-                    { backgroundColor: statusColor },
-                  ]}
-                />
-              </Pressable>
-            );
-          }}
-        />
+                </Pressable>
+              );
+            }}
+          />
+        )}
       </Animated.View>
     </View>
   );
@@ -222,5 +302,42 @@ const styles = StyleSheet.create({
     right: 0,
     height: 3,
     opacity: 0.5,
+  },
+  statusRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  statusLabel: {
+    color: "#6B9F88",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  statusValue: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 20,
+  },
+  emptyText: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: "#8BC4A9",
+    textAlign: "center",
   },
 });

@@ -8,17 +8,20 @@ import {
   Linking,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
+import { API_CONFIG } from "@/constants/api";
 
 export default function ThermalCapture() {
   const router = useRouter();
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
+  const [isUploading, setIsUploading] = useState(false);
 
-  // 🔥 CORRECT WIFI IP (NOT localhost, NOT 172.x hotspot)
-  const BACKEND_URL = "http://192.168.1.14:8000";
+  // Backend URL from config
+  const BACKEND_URL = API_CONFIG.BACKEND_URL;
 
   useEffect(() => {
     Animated.parallel([
@@ -69,14 +72,14 @@ export default function ThermalCapture() {
         ? `image/${fileExtension}`
         : "image/jpeg";
 
-      formData.append("file", {
+      formData.append("image", {
         uri: imageUri,
         name: filename,
         type: mimeType,
       } as any);
 
       const response = await fetch(
-        `${BACKEND_URL}/api/thermal/analyze-thermal`,
+        `${BACKEND_URL}/api/analyze`, // ✅ Leopard detection enabled
         {
           method: "POST",
           body: formData,
@@ -90,10 +93,6 @@ export default function ThermalCapture() {
       const rawText = await response.text();
       console.log("📦 Raw backend response:", rawText);
 
-      if (!response.ok) {
-        throw new Error(`Backend error: ${rawText}`);
-      }
-
       // Safely parse JSON
       let data;
       try {
@@ -103,14 +102,35 @@ export default function ThermalCapture() {
         throw new Error("Invalid JSON from backend");
       }
 
+      if (!response.ok) {
+        // Handle specific error cases
+        if (data.error === 'No leopard detected in image') {
+          // detected_animals is already a formatted string from backend
+          const animals = data.detected_animals || 'other animals';
+          Alert.alert(
+            "❌ No Leopard Detected",
+            `This image contains ${animals}.\n\nPlease upload a thermal image containing a leopard for health analysis.`,
+            [{ text: "OK" }]
+          );
+          throw new Error(data.error);
+        }
+        throw new Error(`Backend error: ${rawText}`);
+      }
+
       console.log("✅ Parsed backend data:", data);
       return data;
     } catch (error: any) {
       console.error("❌ FULL FETCH ERROR:", error);
 
+      // If it's a leopard detection error, the alert was already shown
+      if (error.message && error.message.includes('No leopard detected')) {
+        throw error; // Don't show connection error, just propagate
+      }
+
+      // Show connection error only for network issues
       Alert.alert(
         "Connection Error",
-        "Frontend could not process backend response.\n\nCheck:\n1. Backend running\n2. Same WiFi (192.168.1.14)\n3. Correct API URL"
+        "Could not connect to thermal analysis backend.\n\nCheck:\n1. Backend running (python3 app.py)\n2. API URL correct\n3. For device: use Mac IP instead of localhost"
       );
 
       throw error;
@@ -139,26 +159,31 @@ export default function ThermalCapture() {
 
     const imageUri = result.assets[0].uri;
 
+    setIsUploading(true); // Show loading indicator
+
     try {
-      // 🚀 CALL FASTAPI BACKEND
+      // 🚀 CALL BACKEND
       const analysisResult = await analyzeThermalImage(imageUri);
 
       console.log("🔥 FINAL ANALYSIS RESULT:", analysisResult);
 
-      // 🎯 NAVIGATE WITH REAL BACKEND VALUES
+      // 🎯 NAVIGATE WITH FULL ANALYSIS DATA
+      const analysis = analysisResult.analysis || analysisResult;
+      
       router.replace({
         pathname: "/ThermalView/analysis",
         params: {
-          mean: String(analysisResult.average_temperature ?? "0"),
-          tsi: String(analysisResult.tsi ?? "0"),
-          status: String(analysisResult.stress_level ?? "Unknown"),
-          decision: String(
-            analysisResult.release_decision ?? "Pending Assessment"
-          ),
+          // Pass full analysis as JSON string
+          analysisData: JSON.stringify(analysis),
+          analysisId: analysisResult.analysis_id || "",
+          annotatedImage: analysisResult.annotated_image || "",
         },
       });
-    } catch (error) {
-      console.log("⚠️ Navigation stopped due to API error");
+    } catch (error: any) {
+      console.log("⚠️ Navigation stopped due to error:", error.message);
+      // Error alert already shown in analyzeThermalImage function
+    } finally {
+      setIsUploading(false); // Hide loading indicator
     }
   };
 
@@ -202,7 +227,11 @@ export default function ThermalCapture() {
           </Text>
         </View>
 
-        <TouchableOpacity onPress={openFlirApp} style={styles.flirButton}>
+        <TouchableOpacity 
+          onPress={openFlirApp} 
+          style={styles.flirButton}
+          disabled={isUploading}
+        >
           <Text style={styles.buttonText}>Open FLIR ONE App</Text>
         </TouchableOpacity>
 
@@ -210,9 +239,19 @@ export default function ThermalCapture() {
 
         <TouchableOpacity
           onPress={selectThermalImage}
-          style={styles.uploadButton}
+          style={[styles.uploadButton, isUploading && styles.disabledButton]}
+          disabled={isUploading}
         >
-          <Text style={styles.buttonText}>Upload Thermal Image</Text>
+          {isUploading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#081417" />
+              <Text style={[styles.buttonText, { marginLeft: 10 }]}>
+                Analyzing Image...
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.buttonText}>Upload Thermal Image</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.footerText}>
@@ -280,5 +319,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 30,
     fontSize: 12,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
