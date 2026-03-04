@@ -92,10 +92,10 @@ export default function AlertMapScreen() {
   /* ------------------ FILTER ALERTS BY TOGGLE ------------------ */
   const filteredAlerts = showOutside 
     ? alerts // Show all alerts
-    : alerts.filter(a => !a.is_outside); // Show only Gal Oya alerts
+    : alerts.filter(a => a.is_outside !== true); // Show only Gal Oya alerts (inside or undefined)
   
-  const insideCount = alerts.filter(a => !a.is_outside).length;
-  const outsideCount = alerts.filter(a => a.is_outside).length;
+  const insideCount = alerts.filter(a => a.is_outside !== true).length;
+  const outsideCount = alerts.filter(a => a.is_outside === true).length;
 
   /* ------------------ SEVERITY COLOR MAPPING ------------------ */
   const getSeverityColor = (severity?: string) => {
@@ -189,7 +189,7 @@ export default function AlertMapScreen() {
         {filteredAlerts.map((alert) => {
           const color = getSeverityColor(alert.severity);
           const icon = getSeverityIcon(alert.severity);
-          const borderColor = alert.is_outside ? "#F97316" : "#2ECC71"; // Orange for outside, Green for inside
+          const borderColor = alert.is_outside === true ? "#F97316" : "#2ECC71"; // Orange for outside, Green for inside
           
           return (
             <Marker
@@ -202,7 +202,7 @@ export default function AlertMapScreen() {
                 router.push(`/leoTrack/result?alertId=${alert.alert_id}` as any)
               }
             >
-              <View style={[styles.marker, { backgroundColor: color, borderColor: borderColor, borderWidth: 3 }]}>
+              <View style={[styles.marker, { backgroundColor: color, borderColor: borderColor }]}>
                 <Text style={styles.markerIcon}>{icon}</Text>
                 <Text style={styles.markerEmoji}>🐆</Text>
               </View>
@@ -398,12 +398,12 @@ const styles = StyleSheet.create({
     borderColor: "#2ECC71",
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
   },
   toggleLabel: {
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
+    marginRight: 10,
   },
   backBtn: {
     position: "absolute",
