@@ -44,10 +44,27 @@ class Assessment(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class CaptureStatus(Base):
+    """Capture and release status model for leopards"""
+    __tablename__ = "capture_statuses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    alert_id = Column(String, unique=True, index=True, nullable=False)
+    is_captured = Column(Boolean, default=False, nullable=False)
+    capture_timestamp = Column(String, nullable=True)  # ISO format datetime string
+    is_released = Column(Boolean, default=False, nullable=False)
+    release_timestamp = Column(String, nullable=True)  # ISO format datetime string
+    capture_notes = Column(String, nullable=True)  # Optional notes about capture
+    release_notes = Column(String, nullable=True)  # Optional notes about release
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    print("✅ Database tables created/verified")
 
 
 async def get_session() -> AsyncSession:

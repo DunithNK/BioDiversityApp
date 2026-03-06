@@ -1,4 +1,6 @@
+import * as Print from "expo-print";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -10,10 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
 
-const BACKEND_URL = "http://192.168.1.2:8000";
+const BACKEND_URL = "http://172.20.10.2:8000";
 
 type Assessment = {
   alert_id: string;
@@ -181,7 +181,7 @@ export default function ResultScreen() {
   };
 
   /* -------------------- PDF Report Generation -------------------- */
-  
+
   const generatePDFReport = async () => {
     if (!assessment) {
       Alert.alert("Error", "No assessment data available to generate report.");
@@ -363,11 +363,16 @@ export default function ResultScreen() {
               <div class="subtitle">Wildlife Tracking & Monitoring System</div>
             </div>
 
-            ${assessment.severity === "Critical" || assessment.severity === "High" ? `
+            ${
+              assessment.severity === "Critical" ||
+              assessment.severity === "High"
+                ? `
               <div class="alert-box">
                 <div class="alert-text">⚠️ ${assessment.severity.toUpperCase()} PRIORITY - IMMEDIATE ATTENTION REQUIRED</div>
               </div>
-            ` : ""}
+            `
+                : ""
+            }
 
             <div class="severity-section">
               <div class="severity-icon">${getIconBySeverity(assessment.severity)}</div>
@@ -454,7 +459,7 @@ export default function ResultScreen() {
             },
           },
           { text: "OK", style: "cancel" },
-        ]
+        ],
       );
     } catch (error) {
       console.error("PDF generation error:", error);
