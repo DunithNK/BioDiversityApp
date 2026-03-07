@@ -10,12 +10,18 @@ import {
   View,
 } from "react-native";
 
+import { createLiveSession } from "@/services/liveSessions";
+import { createRecording } from "@/services/recordings";
+
 export default function ListeningScreen() {
   const router = useRouter();
 
   const [mode, setMode] = useState<"live" | "recorded" | null>(null);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [audioName, setAudioName] = useState<string | null>(null);
+
+  const [audioMimeType, setAudioMimeType] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const pickAudioFile = async () => {
     try {
@@ -31,24 +37,62 @@ export default function ListeningScreen() {
       const file = result.assets[0];
       setAudioUri(file.uri);
       setAudioName(file.name);
+      setAudioMimeType(file.mimeType ?? "audio/wav");
     } catch (error) {
       Alert.alert("Error", "Failed to pick audio file");
     }
   };
 
-  const handleProcess = () => {
+  const handleProcess = async () => {
+    if (!mode) {
+      Alert.alert("Mode required", "Please select a mode first");
+      return;
+    }
+
     if (mode === "recorded" && !audioUri) {
       Alert.alert("Audio required", "Please select an audio file first");
       return;
     }
 
-    router.push({
-      pathname: "/SoundTrack/processing",
-      params: {
-        mode,
-        audioUri,
-      },
-    } as any);
+    try {
+      setSubmitting(true);
+
+      if (mode === "live") {
+        const session = await createLiveSession("device-01");
+
+        router.push({
+          pathname: "/SoundTrack/processing",
+          params: {
+            mode: "live",
+            liveSessionId: String(session.id),
+          },
+        });
+        return;
+      }
+
+      if (mode === "recorded" && audioUri) {
+        const recording = await createRecording(
+          audioUri,
+          audioName ?? "recording.wav",
+          audioMimeType ?? "audio/wav",
+          "device-01",
+        );
+
+        router.push({
+          pathname: "/SoundTrack/processing",
+          params: {
+            mode: "recorded",
+            recordingId: String(recording.id),
+            audioName: audioName ?? "",
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Failed to start processing:", error);
+      Alert.alert("Error", "Failed to start processing");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -77,6 +121,7 @@ export default function ListeningScreen() {
             setMode("live");
             setAudioUri(null);
             setAudioName(null);
+            setAudioMimeType(null);
           }}
           activeOpacity={0.8}
         >
@@ -103,7 +148,9 @@ export default function ListeningScreen() {
         {/* RECORDED MODE */}
         <TouchableOpacity
           style={[styles.card, mode === "recorded" && styles.activeCard]}
-          onPress={() => setMode("recorded")}
+          onPress={() => {
+            setMode("recorded");
+          }}
           activeOpacity={0.8}
         >
           <View style={styles.cardContent}>
@@ -159,16 +206,21 @@ export default function ListeningScreen() {
 
       {/* PROCESS BUTTON */}
       <TouchableOpacity
-        disabled={!mode || (mode === "recorded" && !audioUri)}
+        disabled={submitting || !mode || (mode === "recorded" && !audioUri)}
         style={[
           styles.processBtn,
-          (!mode || (mode === "recorded" && !audioUri)) && styles.disabledBtn,
+          (submitting || !mode || (mode === "recorded" && !audioUri)) &&
+            styles.disabledBtn,
         ]}
         onPress={handleProcess}
         activeOpacity={0.9}
       >
         <Text style={styles.processText}>
-          {mode === "live" ? "Start Listening" : "Process Audio"}
+          {submitting
+            ? "Please wait..."
+            : mode === "live"
+              ? "Start Listening"
+              : "Process Audio"}
         </Text>
         <Text style={styles.processIcon}>→</Text>
       </TouchableOpacity>
