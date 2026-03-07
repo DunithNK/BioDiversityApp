@@ -127,3 +127,16 @@ export async function endLiveSession(
     method: "POST",
   });
 }
+
+export interface LiveSessionStatusResponse {
+  live_session_id: number;
+  processing_status: "idle" | "processing" | "complete" | "failed" | string;
+}
+
+export async function getLiveSessionStatus(
+  liveId: number,
+): Promise<LiveSessionStatusResponse> {
+  return apiRequest<LiveSessionStatusResponse>(
+    `/live-sessions/${liveId}/status`,
+  );
+}

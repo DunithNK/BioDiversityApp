@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+import { getDeviceIdentifier } from "@/services/deviceInfo";
 import { createLiveSession } from "@/services/liveSessions";
 import { createRecording } from "@/services/recordings";
 
@@ -57,16 +58,20 @@ export default function ListeningScreen() {
     try {
       setSubmitting(true);
 
+      const deviceId = await getDeviceIdentifier();
+
       if (mode === "live") {
-        const session = await createLiveSession("device-01");
+        const session = await createLiveSession(deviceId);
 
         router.push({
           pathname: "/SoundTrack/processing",
           params: {
             mode: "live",
             liveSessionId: String(session.id),
+            deviceId,
           },
         });
+
         return;
       }
 
@@ -75,7 +80,7 @@ export default function ListeningScreen() {
           audioUri,
           audioName ?? "recording.wav",
           audioMimeType ?? "audio/wav",
-          "device-01",
+          deviceId,
         );
 
         router.push({
@@ -84,6 +89,7 @@ export default function ListeningScreen() {
             mode: "recorded",
             recordingId: String(recording.id),
             audioName: audioName ?? "",
+            deviceId,
           },
         });
       }

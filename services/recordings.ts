@@ -79,3 +79,16 @@ export async function getRecordingChunks(
 ): Promise<RecordingChunk[]> {
   return apiRequest<RecordingChunk[]>(`/recordings/${recordingId}/chunks`);
 }
+
+export interface RecordingStatusResponse {
+  recording_id: number;
+  status: "uploaded" | "processing" | "complete" | "failed" | string;
+}
+
+export async function getRecordingStatus(
+  recordingId: number,
+): Promise<RecordingStatusResponse> {
+  return apiRequest<RecordingStatusResponse>(
+    `/recordings/${recordingId}/status`,
+  );
+}

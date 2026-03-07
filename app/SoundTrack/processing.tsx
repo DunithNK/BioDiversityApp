@@ -1,13 +1,34 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+
+import * as Application from "expo-application";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from "expo-audio";
+import * as Location from "expo-location";
+
+import {
+  endLiveSession,
+  getLiveSession,
+  getLiveSessionStatus,
+  uploadLiveChunk,
+} from "@/services/liveSessions";
+import { getRecording, getRecordingStatus } from "@/services/recordings";
+
+const LIVE_RECORD_SECONDS = 8;
 
 const PROCESSING_STEPS = [
   {
@@ -38,31 +59,69 @@ const PROCESSING_STEPS = [
 
 export default function ProcessingScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams();
+
+  const { mode, recordingId, liveSessionId, audioName } = useLocalSearchParams<{
+    mode?: string;
+    recordingId?: string;
+    liveSessionId?: string;
+    audioName?: string;
+  }>();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [backendStatus, setBackendStatus] = useState("Initializing");
+  const [statusHint, setStatusHint] = useState("Preparing analysis pipeline");
+  const [deviceLabel, setDeviceLabel] = useState("");
+  const [capturedLocation, setCapturedLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const pulseAnim = useState(new Animated.Value(1))[0];
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const waveAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
 
-  const waveAnims = useState([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ])[0];
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   useEffect(() => {
-    // Fade in
+    const loadDeviceLabel = async () => {
+      try {
+        let id = "";
+
+        if (Platform.OS === "android") {
+          id = Application.getAndroidId();
+        } else if (Platform.OS === "ios") {
+          id = (await Application.getIosIdForVendorAsync()) ?? "";
+        }
+
+        const appName = Application.applicationName ?? "BioDiversityApp";
+        const appId = Application.applicationId ?? "unknown-app";
+
+        setDeviceLabel(
+          id ? `${appName} • ${appId} • ${id}` : `${appName} • ${appId}`,
+        );
+      } catch (error) {
+        console.error("Failed to load device info:", error);
+        setDeviceLabel(Application.applicationId ?? "Unknown device");
+      }
+    };
+
+    loadDeviceLabel();
+  }, []);
+
+  useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
     }).start();
 
-    // Pulse center icon
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -78,7 +137,6 @@ export default function ProcessingScreen() {
       ]),
     ).start();
 
-    // ✅ FIXED WAVEFORM ANIMATION (height → JS driver)
     waveAnims.forEach((anim, index) => {
       Animated.loop(
         Animated.sequence([
@@ -95,31 +153,306 @@ export default function ProcessingScreen() {
         ]),
       ).start();
     });
+  }, [fadeAnim, pulseAnim, waveAnims]);
 
-    // Progress simulation
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => (prev >= 100 ? 100 : prev + 1));
-    }, 35);
+  useEffect(() => {
+    let isMounted = true;
 
-    // Step progression
-    const stepTimers = PROCESSING_STEPS.map((step, index) =>
-      setTimeout(() => setCurrentStep(index + 1), step.duration),
-    );
+    const sleep = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
 
-    // Navigate to results
-    const navigationTimer = setTimeout(() => {
-      router.replace({
-        pathname: "/SoundTrack/analysis-result",
-        params: { mode },
-      } as any);
-    }, 8000);
+    const setSafeStep = (value: number) => {
+      if (isMounted) setCurrentStep(value);
+    };
+
+    const setSafeProgress = (value: number) => {
+      if (isMounted) setProgress(value);
+    };
+
+    const setSafeBackendStatus = (value: string) => {
+      if (isMounted) setBackendStatus(value);
+    };
+
+    const setSafeStatusHint = (value: string) => {
+      if (isMounted) setStatusHint(value);
+    };
+
+    const getPhoneLocation = async () => {
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+
+        if (!permission.granted) {
+          setSafeStatusHint(
+            "Location permission denied. Continuing without GPS coordinates.",
+          );
+          return null;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+
+        const coords = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+
+        if (isMounted) {
+          setCapturedLocation(coords);
+        }
+
+        return coords;
+      } catch (error) {
+        console.error("Failed to get location:", error);
+        return null;
+      }
+    };
+
+    const recordChunkFromMicrophone = async () => {
+      const permission = await requestRecordingPermissionsAsync();
+
+      if (!permission.granted) {
+        throw new Error("Microphone permission denied");
+      }
+
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
+
+      await recorder.prepareToRecordAsync();
+
+      setSafeBackendStatus("recording");
+      setSafeStatusHint(
+        `Recording ${LIVE_RECORD_SECONDS} seconds from microphone`,
+      );
+      setSafeStep(1);
+      setSafeProgress(12);
+
+      recorder.record({ forDuration: LIVE_RECORD_SECONDS });
+
+      await sleep(LIVE_RECORD_SECONDS * 1000 + 800);
+
+      if (recorder.isRecording) {
+        await recorder.stop();
+      }
+
+      const uri = recorder.uri;
+
+      if (!uri) {
+        throw new Error("No audio file was created after recording");
+      }
+
+      return uri;
+    };
+
+    const processRecorded = async () => {
+      if (!recordingId) {
+        Alert.alert("Error", "Recording ID not found");
+        router.back();
+        return;
+      }
+
+      setSafeStep(1);
+      setSafeProgress(15);
+      setSafeBackendStatus("uploaded");
+      setSafeStatusHint("Audio file uploaded successfully");
+
+      let attempts = 0;
+      let isComplete = false;
+
+      while (isMounted && attempts < 40) {
+        attempts += 1;
+
+        const statusResponse = await getRecordingStatus(Number(recordingId));
+        const status = String(statusResponse.status ?? "").toLowerCase();
+
+        if (!isMounted) return;
+
+        setSafeBackendStatus(status || "unknown");
+
+        if (status === "uploaded") {
+          setSafeStep(1);
+          setSafeProgress(Math.min(20 + attempts, 30));
+          setSafeStatusHint("Waiting for server to start analysis");
+        } else if (status === "processing") {
+          if (attempts >= 2) setSafeStep(2);
+          if (attempts >= 4) setSafeStep(3);
+          if (attempts >= 6) setSafeStep(4);
+
+          setSafeProgress(Math.min(35 + attempts * 2, 92));
+          setSafeStatusHint("Server is analyzing the uploaded recording");
+        } else if (status === "failed") {
+          throw new Error("Recording processing failed");
+        } else if (status === "completed") {
+          isComplete = true;
+          break;
+        }
+
+        await sleep(1500);
+      }
+
+      if (!isComplete) {
+        throw new Error("Recording processing timed out");
+      }
+
+      const recording = await getRecording(Number(recordingId));
+
+      if (!isMounted) return;
+
+      setSafeStep(PROCESSING_STEPS.length);
+      setSafeProgress(100);
+      setSafeBackendStatus("completed");
+      setSafeStatusHint("Preparing detection result");
+
+      setTimeout(() => {
+        if (!isMounted) return;
+
+        router.replace({
+          pathname: "/SoundTrack/analysis-result",
+          params: {
+            mode: "recorded",
+            recording: JSON.stringify(recording),
+            audioName: audioName ?? "",
+          },
+        } as any);
+      }, 500);
+    };
+
+    const processLive = async () => {
+      if (!liveSessionId) {
+        Alert.alert("Error", "Live session ID not found");
+        router.back();
+        return;
+      }
+
+      setSafeStatusHint("Preparing microphone and GPS");
+      const coords = await getPhoneLocation();
+      const liveAudioUri = await recordChunkFromMicrophone();
+
+      if (!isMounted) return;
+
+      setSafeStep(2);
+      setSafeProgress(35);
+      setSafeBackendStatus("uploading");
+      setSafeStatusHint("Uploading live audio chunk to server");
+
+      await uploadLiveChunk({
+        liveId: Number(liveSessionId),
+        fileUri: liveAudioUri,
+        fileName: `live-${Date.now()}.m4a`,
+        mimeType: Platform.OS === "ios" ? "audio/x-m4a" : "audio/mp4",
+        latitude: coords?.latitude,
+        longitude: coords?.longitude,
+        chunkIndex: 0,
+      });
+
+      if (!isMounted) return;
+
+      setSafeStep(3);
+      setSafeProgress(52);
+      setSafeBackendStatus("idle");
+      setSafeStatusHint("Waiting for live session analysis");
+
+      let attempts = 0;
+      let isComplete = false;
+
+      while (isMounted && attempts < 40) {
+        attempts += 1;
+
+        const statusResponse = await getLiveSessionStatus(
+          Number(liveSessionId),
+        );
+
+        console.log("LIVE STATUS RESPONSE:", statusResponse);
+
+        const processingStatus = String(
+          statusResponse.processing_status ?? "",
+        ).toLowerCase();
+
+        console.log("LIVE PROCESSING STATUS:", processingStatus);
+
+        if (!isMounted) return;
+
+        setSafeBackendStatus(processingStatus || "unknown");
+
+        if (processingStatus === "idle") {
+          setSafeProgress(Math.min(55 + attempts, 64));
+          setSafeStatusHint("Session is queued on the server");
+        } else if (processingStatus === "processing") {
+          setSafeStep(4);
+          setSafeProgress(Math.min(66 + attempts * 2, 92));
+          setSafeStatusHint("Server is analyzing the live recording");
+        } else if (processingStatus === "failed") {
+          throw new Error("Live session processing failed");
+        } else if (processingStatus === "completed") {
+          isComplete = true;
+          break;
+        }
+
+        await sleep(1500);
+      }
+
+      if (!isComplete) {
+        throw new Error("Live session processing timed out");
+      }
+
+      const session = await getLiveSession(Number(liveSessionId));
+
+      if (!isMounted) return;
+
+      await endLiveSession(Number(liveSessionId));
+
+      if (!isMounted) return;
+
+      setSafeStep(PROCESSING_STEPS.length);
+      setSafeProgress(100);
+      setSafeBackendStatus("completed");
+      setSafeStatusHint("Preparing live session result");
+
+      setTimeout(() => {
+        if (!isMounted) return;
+
+        router.replace({
+          pathname: "/SoundTrack/analysis-result",
+          params: {
+            mode: "live",
+            liveSession: JSON.stringify({
+              ...session,
+              location: coords ?? undefined,
+            }),
+          },
+        } as any);
+      }, 500);
+    };
+
+    const runProcessing = async () => {
+      try {
+        if (mode === "recorded") {
+          await processRecorded();
+          return;
+        }
+
+        if (mode === "live") {
+          await processLive();
+          return;
+        }
+
+        Alert.alert("Error", "Invalid processing mode");
+        router.back();
+      } catch (error) {
+        console.error("Processing failed:", error);
+        Alert.alert("Error", "Failed to process audio");
+        router.back();
+      }
+    };
+
+    runProcessing();
 
     return () => {
-      clearInterval(progressInterval);
-      stepTimers.forEach(clearTimeout);
-      clearTimeout(navigationTimer);
+      isMounted = false;
     };
-  }, []);
+  }, [mode, recordingId, liveSessionId, audioName, recorder, router]);
 
   return (
     <ScrollView
@@ -128,7 +461,6 @@ export default function ProcessingScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Analyzing Sound</Text>
           <Text style={styles.subtitle}>
@@ -136,7 +468,6 @@ export default function ProcessingScreen() {
           </Text>
         </View>
 
-        {/* Animation */}
         <View style={styles.animationContainer}>
           <View style={styles.waveformContainer}>
             {waveAnims.map((anim, index) => (
@@ -172,7 +503,6 @@ export default function ProcessingScreen() {
           </View>
         </View>
 
-        {/* Progress */}
         <View style={styles.progressSection}>
           <View style={styles.progressBarContainer}>
             <View style={[styles.progressBar, { width: `${progress}%` }]} />
@@ -180,7 +510,34 @@ export default function ProcessingScreen() {
           <Text style={styles.progressText}>{progress}%</Text>
         </View>
 
-        {/* Steps */}
+        <View style={styles.statusInfoCard}>
+          <View style={styles.statusInfoRow}>
+            <Text style={styles.statusInfoLabel}>Backend Status</Text>
+            <Text style={styles.statusInfoValue}>{backendStatus}</Text>
+          </View>
+
+          <Text style={styles.statusHint}>{statusHint}</Text>
+
+          {deviceLabel ? (
+            <Text style={styles.metaLabel} numberOfLines={1}>
+              Device: {deviceLabel}
+            </Text>
+          ) : null}
+
+          {capturedLocation ? (
+            <Text style={styles.metaLabel} numberOfLines={1}>
+              Location: {capturedLocation.latitude.toFixed(5)},{" "}
+              {capturedLocation.longitude.toFixed(5)}
+            </Text>
+          ) : null}
+
+          {audioName ? (
+            <Text style={styles.metaLabel} numberOfLines={1}>
+              File: {audioName}
+            </Text>
+          ) : null}
+        </View>
+
         <View style={styles.stepsContainer}>
           <Text style={styles.stepsTitle}>Processing Steps</Text>
           {PROCESSING_STEPS.map((step, index) => (
@@ -209,7 +566,6 @@ export default function ProcessingScreen() {
           ))}
         </View>
 
-        {/* Footer */}
         <View style={styles.footer}>
           <View style={styles.statusBadge}>
             <View style={styles.statusDot} />
@@ -283,6 +639,7 @@ const styles = StyleSheet.create({
     height: 8,
     backgroundColor: "#1A3D2E",
     borderRadius: 4,
+    overflow: "hidden",
   },
   progressBar: {
     height: "100%",
@@ -292,6 +649,43 @@ const styles = StyleSheet.create({
     color: "#2ECC71",
     textAlign: "right",
     fontWeight: "bold",
+    marginTop: 8,
+  },
+
+  statusInfoCard: {
+    backgroundColor: "#0F2F23",
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#1A3D2E",
+    marginBottom: 20,
+  },
+  statusInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  statusInfoLabel: {
+    color: "#8BC4A9",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  statusInfoValue: {
+    color: "#2ECC71",
+    fontSize: 14,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
+  statusHint: {
+    color: "#D7F5E6",
+    fontSize: 14,
+    marginTop: 10,
+    lineHeight: 20,
+  },
+  metaLabel: {
+    color: "#6B9F88",
+    marginTop: 10,
+    fontSize: 12,
   },
 
   stepsContainer: {
