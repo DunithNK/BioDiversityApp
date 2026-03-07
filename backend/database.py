@@ -24,8 +24,10 @@ class Alert(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     source = Column(String, nullable=False)  # "Camera" or "Gallery"
-    is_outside = Column(Boolean, default=False, nullable=False)  # True if outside Gal Oya boundary
-    distance_to_boundary_km = Column(Float, nullable=True)  # Distance to park boundary in km
+    is_outside = Column(Boolean, default=False, nullable=False)
+    distance_to_boundary_km = Column(Float, nullable=True)
+    status = Column(String, default="active", nullable=False)  # "active" | "released"
+    released_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -44,27 +46,29 @@ class Assessment(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-class CaptureStatus(Base):
-    """Capture and release status model for leopards"""
-    __tablename__ = "capture_statuses"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    alert_id = Column(String, unique=True, index=True, nullable=False)
-    is_captured = Column(Boolean, default=False, nullable=False)
-    capture_timestamp = Column(String, nullable=True)  # ISO format datetime string
-    is_released = Column(Boolean, default=False, nullable=False)
-    release_timestamp = Column(String, nullable=True)  # ISO format datetime string
-    capture_notes = Column(String, nullable=True)  # Optional notes about capture
-    release_notes = Column(String, nullable=True)  # Optional notes about release
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
 async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    print("✅ Database tables created/verified")
+    
+    # Run migrations for existing databases (add new columns if missing)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(
+                __import__('sqlalchemy').text(
+                    "ALTER TABLE alerts ADD COLUMN status TEXT DEFAULT 'active' NOT NULL"
+                )
+            )
+        except Exception:
+            pass  # Column already exists
+        try:
+            await conn.execute(
+                __import__('sqlalchemy').text(
+                    "ALTER TABLE alerts ADD COLUMN released_at DATETIME"
+                )
+            )
+        except Exception:
+            pass  # Column already exists
 
 
 async def get_session() -> AsyncSession:

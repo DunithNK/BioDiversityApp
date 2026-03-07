@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,10 +28,14 @@ export default function ResultScreen() {
 
   const [loading, setLoading] = useState(true);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [releasing, setReleasing] = useState(false);
+  const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(30));
   const [scaleAnim] = useState(new Animated.Value(0.9));
   const [pulseAnim] = useState(new Animated.Value(1));
+  const [toastAnim] = useState(new Animated.Value(0));
 
   useEffect(() => {
     if (!alertId) {
@@ -94,6 +99,60 @@ export default function ResultScreen() {
       }
     }
   }, [loading, assessment]);
+
+  /* -------------------- Toast Helper -------------------- */
+  const showToast = () => {
+    setToastVisible(true);
+    Animated.sequence([
+      Animated.timing(toastAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.delay(2200),
+      Animated.timing(toastAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setToastVisible(false));
+  };
+
+  /* -------------------- Release Handler -------------------- */
+  const handleRelease = async () => {
+    if (!alertId) return;
+
+    try {
+      setReleasing(true);
+      setShowReleaseModal(false);
+
+      const res = await fetch(`${BACKEND_URL}/alert/release`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alert_id: alertId }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Release failed");
+      }
+
+      showToast();
+
+      // Navigate back to history after toast displays
+      setTimeout(() => {
+        router.replace("/leoTrack/history");
+      }, 1800);
+    } catch (error: any) {
+      console.error("Release error:", error);
+      Alert.alert(
+        "Release Failed",
+        error.message || "Could not release the leopard. Please try again."
+      );
+    } finally {
+      setReleasing(false);
+    }
+  };
 
   const getColorBySeverity = (severity?: string) => {
     switch (severity) {
@@ -542,6 +601,47 @@ export default function ResultScreen() {
 
   return (
     <View style={styles.container}>
+      {/* ---- Release Confirmation Modal ---- */}
+      <Modal
+        visible={showReleaseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReleaseModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalEmoji}>🐆</Text>
+            <Text style={styles.modalTitle}>Confirm Release</Text>
+            <Text style={styles.modalMessage}>
+              This will mark the leopard as released and remove it from active alerts.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowReleaseModal(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                onPress={handleRelease}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalConfirmText}>Confirm Release</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ---- Toast ---- */}
+      {toastVisible && (
+        <Animated.View style={[styles.toast, { opacity: toastAnim }]}>
+          <Text style={styles.toastText}>✅ Leopard successfully released</Text>
+        </Animated.View>
+      )}
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -650,6 +750,24 @@ export default function ResultScreen() {
           <Text style={styles.recommendationText}>
             {getRecommendation(assessment.severity)}
           </Text>
+        </Animated.View>
+
+        {/* ---- Release Leopard Button ---- */}
+        <Animated.View style={{ opacity: fadeAnim, marginBottom: 16 }}>
+          <TouchableOpacity
+            style={[
+              styles.releaseButton,
+              releasing && styles.releaseButtonDisabled,
+            ]}
+            onPress={() => setShowReleaseModal(true)}
+            activeOpacity={0.85}
+            disabled={releasing}
+          >
+            <Text style={styles.releaseIcon}>🐆</Text>
+            <Text style={styles.releaseText}>
+              {releasing ? "Releasing..." : "Release Leopard"}
+            </Text>
+          </TouchableOpacity>
         </Animated.View>
 
         {/* Details Card */}
@@ -1047,6 +1165,34 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
 
+  // Release Button
+  releaseButton: {
+    backgroundColor: "#1B5E20",
+    padding: 18,
+    borderRadius: 16,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    shadowColor: "#1B5E20",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  releaseButtonDisabled: {
+    opacity: 0.6,
+  },
+  releaseIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  releaseText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
+    letterSpacing: -0.2,
+  },
+
   // Details Card
   detailsCard: {
     backgroundColor: "#FAFAFA",
@@ -1183,5 +1329,104 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9E9E9E",
     textAlign: "center",
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 28,
+    width: "100%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  modalEmoji: {
+    fontSize: 52,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1B5E20",
+    marginBottom: 12,
+    letterSpacing: -0.5,
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: "#4A4A4A",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalCancelBtn: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 14,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    backgroundColor: "#FAFAFA",
+  },
+  modalCancelText: {
+    color: "#616161",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  modalConfirmBtn: {
+    flex: 1.5,
+    padding: 16,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: "#1B5E20",
+    shadowColor: "#1B5E20",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalConfirmText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+
+  // Toast
+  toast: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    right: 20,
+    zIndex: 999,
+    backgroundColor: "#1B5E20",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  toastText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
