@@ -1,6 +1,5 @@
-import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Animated,
   ScrollView,
@@ -9,16 +8,78 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { saveDetection } from "./storage";
+
+type RecordingResult = {
+  id?: number;
+  label?: string | null;
+  overall_label?: string | null;
+  overall_is_leopard?: boolean;
+  confidence?: number | null;
+  best_confidence?: number | null;
+  distance_m?: number | null;
+  distance_min_m?: number | null;
+  distance_max_m?: number | null;
+  created_at?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+type LiveSessionResult = {
+  id?: number;
+  device_id?: string | null;
+  overall_is_leopard?: boolean;
+  best_confidence?: number | null;
+  last_detected_at?: string | null;
+  started_at?: string;
+  ended_at?: string | null;
+  last_location?: {
+    latitude?: number | null;
+    longitude?: number | null;
+  } | null;
+  distance?: {
+    estimated_m?: number | null;
+    min_m?: number | null;
+    max_m?: number | null;
+    confidence?: number | null;
+  } | null;
+};
 
 export default function AnalysisResultScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams<{ mode: "live" | "recorded" }>();
+
+  const { mode, recording, liveSession, audioName } = useLocalSearchParams<{
+    mode?: "live" | "recorded";
+    recording?: string;
+    liveSession?: string;
+    audioName?: string;
+  }>();
+
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
 
+  const parsedRecording: RecordingResult | null = useMemo(() => {
+    if (!recording) return null;
+
+    try {
+      return JSON.parse(recording);
+    } catch (error) {
+      console.error("Failed to parse recording result:", error);
+      return null;
+    }
+  }, [recording]);
+
+  const parsedLiveSession: LiveSessionResult | null = useMemo(() => {
+    if (!liveSession) return null;
+
+    try {
+      return JSON.parse(liveSession);
+    } catch (error) {
+      console.error("Failed to parse live session result:", error);
+      return null;
+    }
+  }, [liveSession]);
+
   useEffect(() => {
-    // Animate entrance
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -32,33 +93,133 @@ export default function AnalysisResultScreen() {
         useNativeDriver: true,
       }),
     ]).start();
+  }, [fadeAnim, scaleAnim]);
 
-    const saveWithLocation = async () => {
-      let latitude, longitude;
+  const isLive = mode === "live";
 
-      if (mode === "live") {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === "granted") {
-          const loc = await Location.getCurrentPositionAsync({});
-          latitude = loc.coords.latitude;
-          longitude = loc.coords.longitude;
-        }
+  const detectionLabel = useMemo(() => {
+    if (isLive) {
+      return parsedLiveSession?.overall_is_leopard
+        ? "Sri Lankan Leopard"
+        : "No Leopard Detected";
+    }
+
+    const rawLabel =
+      parsedRecording?.overall_label ?? parsedRecording?.label ?? null;
+
+    if (!rawLabel) {
+      return parsedRecording?.overall_is_leopard
+        ? "Sri Lankan Leopard"
+        : "No Leopard Detected";
+    }
+
+    return rawLabel;
+  }, [isLive, parsedLiveSession, parsedRecording]);
+
+  const scientificName = useMemo(() => {
+    if (!parsedLiveSession?.overall_is_leopard) {
+      return "";
+    }
+
+    if (detectionLabel.toLowerCase().includes("leopard")) {
+      return "Panthera pardus kotiya";
+    }
+    return "No matching leopard vocalization";
+  }, [detectionLabel, parsedLiveSession]);
+
+  const confidence = useMemo(() => {
+    if (isLive) {
+      return parsedLiveSession?.best_confidence ?? null;
+    }
+
+    return (
+      parsedRecording?.best_confidence ?? parsedRecording?.confidence ?? null
+    );
+  }, [isLive, parsedLiveSession, parsedRecording]);
+
+  const formattedConfidence = useMemo(() => {
+    if (confidence == null) return "N/A";
+
+    const normalized = confidence <= 1 ? confidence * 100 : confidence;
+    return `${Math.round(normalized)}%`;
+  }, [confidence]);
+
+  const distanceText = useMemo(() => {
+    if (isLive) {
+      const min = parsedLiveSession?.distance?.min_m;
+      const max = parsedLiveSession?.distance?.max_m;
+      const exact = parsedLiveSession?.distance?.estimated_m;
+
+      if (!parsedLiveSession?.overall_is_leopard) {
+        return "N/A";
       }
 
-      saveDetection({
-        id: Date.now().toString(),
-        mode,
-        date: new Date().toLocaleString(),
-        latitude,
-        longitude,
-        frequency: "280 – 520 Hz",
-        distance: "180 – 230 m",
-        confidence: 87,
-      });
-    };
+      if (min != null && max != null) {
+        return `${Math.round(min)} – ${Math.round(max)} m`;
+      }
 
-    saveWithLocation();
-  }, []);
+      if (exact != null) {
+        return `${Math.round(exact)} m`;
+      }
+
+      return "N/A";
+    }
+
+    const min = parsedRecording?.distance_min_m;
+    const max = parsedRecording?.distance_max_m;
+    const exact = parsedRecording?.distance_m;
+
+    if (min != null && max != null) {
+      return `${Math.round(min)} – ${Math.round(max)} m`;
+    }
+
+    if (exact != null) {
+      return `${Math.round(exact)} m`;
+    }
+
+    return "N/A";
+  }, [isLive, parsedLiveSession, parsedRecording]);
+
+  const locationText = useMemo(() => {
+    if (isLive) {
+      const lat = parsedLiveSession?.last_location?.latitude;
+      const lng = parsedLiveSession?.last_location?.longitude;
+
+      if (lat != null && lng != null) {
+        return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      }
+
+      return "Unavailable";
+    }
+
+    const lat = parsedRecording?.latitude;
+    const lng = parsedRecording?.longitude;
+
+    if (lat != null && lng != null) {
+      return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    }
+
+    return "Unavailable";
+  }, [isLive, parsedLiveSession, parsedRecording]);
+
+  const detectedAt = useMemo(() => {
+    const rawDate = isLive
+      ? (parsedLiveSession?.last_detected_at ?? parsedLiveSession?.started_at)
+      : parsedRecording?.created_at;
+
+    if (!rawDate) return "Unavailable";
+
+    try {
+      return new Date(rawDate).toLocaleString();
+    } catch {
+      return String(rawDate);
+    }
+  }, [isLive, parsedLiveSession, parsedRecording]);
+
+  const isDetected = useMemo(() => {
+    if (isLive) return !!parsedLiveSession?.overall_is_leopard;
+    return !!parsedRecording?.overall_is_leopard;
+  }, [isLive, parsedLiveSession, parsedRecording]);
 
   return (
     <ScrollView
@@ -66,7 +227,6 @@ export default function AnalysisResultScreen() {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* Success Header */}
       <Animated.View
         style={[
           styles.header,
@@ -76,16 +236,23 @@ export default function AnalysisResultScreen() {
           },
         ]}
       >
-        <View style={styles.successBadge}>
-          <Text style={styles.successIcon}>✓</Text>
+        <View style={[styles.successBadge, !isDetected && styles.neutralBadge]}>
+          <Text style={[styles.successIcon, !isDetected && styles.neutralIcon]}>
+            {isDetected ? "✓" : "!"}
+          </Text>
         </View>
-        <Text style={styles.title}>Detection Complete!</Text>
+
+        <Text style={styles.title}>
+          {isDetected ? "Detection Complete!" : "Analysis Complete"}
+        </Text>
+
         <Text style={styles.subtitle}>
-          Successfully identified leopard vocalization
+          {isDetected
+            ? "Leopard vocalization analysis finished successfully"
+            : "No leopard vocalization detected in this sample"}
         </Text>
       </Animated.View>
 
-      {/* Species Card */}
       <Animated.View
         style={[
           styles.speciesCard,
@@ -95,16 +262,15 @@ export default function AnalysisResultScreen() {
         ]}
       >
         <View style={styles.speciesHeader}>
-          <Text style={styles.speciesIcon}>🐆</Text>
+          <Text style={styles.speciesIcon}>{isDetected ? "🐆" : "🎧"}</Text>
           <View style={styles.speciesInfo}>
-            <Text style={styles.speciesLabel}>Species Detected</Text>
-            <Text style={styles.speciesName}>Sri Lankan Leopard</Text>
-            <Text style={styles.scientificName}>Panthera pardus kotiya</Text>
+            <Text style={styles.speciesLabel}>Analysis Result</Text>
+            <Text style={styles.speciesName}>{detectionLabel}</Text>
+            <Text style={styles.scientificName}>{scientificName}</Text>
           </View>
         </View>
       </Animated.View>
 
-      {/* Detection Details */}
       <Animated.View
         style={[
           styles.detailsContainer,
@@ -117,12 +283,10 @@ export default function AnalysisResultScreen() {
 
         <View style={styles.detailsGrid}>
           <View style={styles.detailCard}>
-            <Text style={styles.detailIcon}>
-              {mode === "live" ? "🎙️" : "📁"}
-            </Text>
+            <Text style={styles.detailIcon}>{isLive ? "🎙️" : "📁"}</Text>
             <Text style={styles.detailLabel}>Mode</Text>
             <Text style={styles.detailValue}>
-              {mode === "live" ? "Live Recording" : "Uploaded File"}
+              {isLive ? "Live Recording" : "Uploaded File"}
             </Text>
           </View>
 
@@ -130,25 +294,38 @@ export default function AnalysisResultScreen() {
             <Text style={styles.detailIcon}>📊</Text>
             <Text style={styles.detailLabel}>Confidence</Text>
             <Text style={[styles.detailValue, styles.confidenceValue]}>
-              87%
+              {formattedConfidence}
             </Text>
           </View>
 
           <View style={styles.detailCard}>
-            <Text style={styles.detailIcon}>〰️</Text>
-            <Text style={styles.detailLabel}>Frequency</Text>
-            <Text style={styles.detailValue}>280 – 520 Hz</Text>
+            <Text style={styles.detailIcon}>📍</Text>
+            <Text style={styles.detailLabel}>Location</Text>
+            <Text style={styles.detailValue}>{locationText}</Text>
           </View>
 
           <View style={styles.detailCard}>
-            <Text style={styles.detailIcon}>📍</Text>
+            <Text style={styles.detailIcon}>📏</Text>
             <Text style={styles.detailLabel}>Distance</Text>
-            <Text style={styles.detailValue}>180 – 230 m</Text>
+            <Text style={styles.detailValue}>{distanceText}</Text>
           </View>
+
+          <View style={styles.fullWidthCard}>
+            <Text style={styles.detailIcon}>🕒</Text>
+            <Text style={styles.detailLabel}>Detected At</Text>
+            <Text style={styles.detailValue}>{detectedAt}</Text>
+          </View>
+
+          {!isLive && audioName ? (
+            <View style={styles.fullWidthCard}>
+              <Text style={styles.detailIcon}>🎵</Text>
+              <Text style={styles.detailLabel}>Audio File</Text>
+              <Text style={styles.detailValue}>{audioName}</Text>
+            </View>
+          ) : null}
         </View>
       </Animated.View>
 
-      {/* Action Buttons */}
       <Animated.View
         style={[
           styles.buttonContainer,
@@ -175,9 +352,10 @@ export default function AnalysisResultScreen() {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Info Footer */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>💾 Detection saved to history</Text>
+        <Text style={styles.footerText}>
+          ✅ Detection data loaded from backend
+        </Text>
       </View>
     </ScrollView>
   );
@@ -189,7 +367,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#0A1F17",
   },
 
-  // Header Styles
   header: {
     alignItems: "center",
     marginTop: 40,
@@ -206,10 +383,16 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: "#2ECC71",
   },
+  neutralBadge: {
+    borderColor: "#8BC4A9",
+  },
   successIcon: {
     fontSize: 40,
     color: "#2ECC71",
     fontWeight: "bold",
+  },
+  neutralIcon: {
+    color: "#8BC4A9",
   },
   title: {
     fontSize: 32,
@@ -224,7 +407,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Species Card
   speciesCard: {
     backgroundColor: "#0F2F23",
     borderRadius: 20,
@@ -263,7 +445,6 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  // Details Section
   detailsContainer: {
     marginBottom: 20,
   },
@@ -283,6 +464,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     width: "48%",
+    borderWidth: 1,
+    borderColor: "#1A3D2E",
+    alignItems: "center",
+  },
+  fullWidthCard: {
+    backgroundColor: "#0F2F23",
+    borderRadius: 16,
+    padding: 16,
+    width: "100%",
     borderWidth: 1,
     borderColor: "#1A3D2E",
     alignItems: "center",
@@ -310,7 +500,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  // Button Container
   buttonContainer: {
     gap: 12,
     marginBottom: 16,
@@ -353,7 +542,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // Footer
   footer: {
     alignItems: "center",
     paddingVertical: 12,
