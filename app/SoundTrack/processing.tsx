@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -74,7 +75,7 @@ export default function ProcessingScreen() {
           duration: 1000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
 
     // ✅ FIXED WAVEFORM ANIMATION (height → JS driver)
@@ -91,7 +92,7 @@ export default function ProcessingScreen() {
             duration: 400 + index * 100,
             useNativeDriver: false,
           }),
-        ])
+        ]),
       ).start();
     });
 
@@ -102,7 +103,7 @@ export default function ProcessingScreen() {
 
     // Step progression
     const stepTimers = PROCESSING_STEPS.map((step, index) =>
-      setTimeout(() => setCurrentStep(index + 1), step.duration)
+      setTimeout(() => setCurrentStep(index + 1), step.duration),
     );
 
     // Navigate to results
@@ -111,7 +112,7 @@ export default function ProcessingScreen() {
         pathname: "/SoundTrack/analysis-result",
         params: { mode },
       } as any);
-    }, 4000);
+    }, 8000);
 
     return () => {
       clearInterval(progressInterval);
@@ -121,7 +122,11 @@ export default function ProcessingScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {/* Header */}
         <View style={styles.header}>
@@ -155,10 +160,7 @@ export default function ProcessingScreen() {
           </View>
 
           <Animated.View
-            style={[
-              styles.centerIcon,
-              { transform: [{ scale: pulseAnim }] },
-            ]}
+            style={[styles.centerIcon, { transform: [{ scale: pulseAnim }] }]}
           >
             <View style={styles.iconCircle}>
               <Text style={styles.iconText}>🎧</Text>
@@ -215,22 +217,32 @@ export default function ProcessingScreen() {
           </View>
         </View>
       </Animated.View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A1F17" },
-  content: { flex: 1, padding: 24, justifyContent: "space-between" },
+  container: {
+    flex: 1,
+    backgroundColor: "#0A1F17",
+  },
+  content: {
+    flexGrow: 1,
+    padding: 24,
+    paddingTop: 40,
+    paddingBottom: 40,
+    justifyContent: "space-between",
+    minHeight: "100%",
+  },
 
-  header: { alignItems: "center", marginTop: 60 },
+  header: { alignItems: "center", marginTop: 0 },
   title: { fontSize: 32, color: "#FFF", fontWeight: "bold" },
-  subtitle: { fontSize: 15, color: "#8BC4A9" },
+  subtitle: { fontSize: 15, color: "#8BC4A9", marginTop: 10 },
 
   animationContainer: {
     alignItems: "center",
     justifyContent: "center",
-    height: 200,
+    height: 160,
   },
 
   waveformContainer: {
@@ -341,6 +353,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#2ECC71",
+    marginTop: 20,
   },
   statusDot: {
     width: 8,
@@ -350,4 +363,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   statusText: { color: "#2ECC71", fontWeight: "600" },
+
+  scrollContent: {
+    flexGrow: 1,
+  },
 });

@@ -1,7 +1,14 @@
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Animated,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { saveDetection } from "./storage";
 
 export default function AnalysisResultScreen() {
@@ -54,7 +61,11 @@ export default function AnalysisResultScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Success Header */}
       <Animated.View
         style={[
@@ -105,7 +116,6 @@ export default function AnalysisResultScreen() {
         <Text style={styles.sectionTitle}>Detection Details</Text>
 
         <View style={styles.detailsGrid}>
-          {/* Mode */}
           <View style={styles.detailCard}>
             <Text style={styles.detailIcon}>
               {mode === "live" ? "🎙️" : "📁"}
@@ -116,7 +126,6 @@ export default function AnalysisResultScreen() {
             </Text>
           </View>
 
-          {/* Confidence */}
           <View style={styles.detailCard}>
             <Text style={styles.detailIcon}>📊</Text>
             <Text style={styles.detailLabel}>Confidence</Text>
@@ -125,14 +134,12 @@ export default function AnalysisResultScreen() {
             </Text>
           </View>
 
-          {/* Frequency */}
           <View style={styles.detailCard}>
             <Text style={styles.detailIcon}>〰️</Text>
             <Text style={styles.detailLabel}>Frequency</Text>
             <Text style={styles.detailValue}>280 – 520 Hz</Text>
           </View>
 
-          {/* Distance */}
           <View style={styles.detailCard}>
             <Text style={styles.detailIcon}>📍</Text>
             <Text style={styles.detailLabel}>Distance</Text>
@@ -140,9 +147,6 @@ export default function AnalysisResultScreen() {
           </View>
         </View>
       </Animated.View>
-
-      {/* Spacer */}
-      <View style={styles.spacer} />
 
       {/* Action Buttons */}
       <Animated.View
@@ -173,11 +177,9 @@ export default function AnalysisResultScreen() {
 
       {/* Info Footer */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          💾 Detection saved to history
-        </Text>
+        <Text style={styles.footerText}>💾 Detection saved to history</Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -185,7 +187,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0A1F17",
-    padding: 24,
   },
 
   // Header Styles
@@ -309,11 +310,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  // Spacer
-  spacer: {
-    flex: 1,
-  },
-
   // Button Container
   buttonContainer: {
     gap: 12,
@@ -365,5 +361,11 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 13,
     color: "#6B9F88",
+  },
+
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 40,
+    flexGrow: 1,
   },
 });

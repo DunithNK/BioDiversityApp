@@ -3,10 +3,11 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 export default function ListeningScreen() {
@@ -51,7 +52,11 @@ export default function ListeningScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Header Section */}
       <View style={styles.header}>
         <View style={styles.iconContainer}>
@@ -76,7 +81,9 @@ export default function ListeningScreen() {
           activeOpacity={0.8}
         >
           <View style={styles.cardContent}>
-            <View style={[styles.iconBox, mode === "live" && styles.activeIconBox]}>
+            <View
+              style={[styles.iconBox, mode === "live" && styles.activeIconBox]}
+            >
               <Text style={styles.cardIcon}>🎙️</Text>
             </View>
             <View style={styles.cardTextContainer}>
@@ -100,7 +107,12 @@ export default function ListeningScreen() {
           activeOpacity={0.8}
         >
           <View style={styles.cardContent}>
-            <View style={[styles.iconBox, mode === "recorded" && styles.activeIconBox]}>
+            <View
+              style={[
+                styles.iconBox,
+                mode === "recorded" && styles.activeIconBox,
+              ]}
+            >
               <Text style={styles.cardIcon}>📁</Text>
             </View>
             <View style={styles.cardTextContainer}>
@@ -123,9 +135,7 @@ export default function ListeningScreen() {
         <View style={styles.uploadSection}>
           <TouchableOpacity style={styles.uploadBtn} onPress={pickAudioFile}>
             <View style={styles.uploadContent}>
-              <Text style={styles.uploadIcon}>
-                {audioUri ? "🎵" : "📤"}
-              </Text>
+              <Text style={styles.uploadIcon}>{audioUri ? "🎵" : "📤"}</Text>
               <View style={styles.uploadTextContainer}>
                 <Text style={styles.uploadTitle}>
                   {audioUri ? "Audio Selected" : "Select Audio File"}
@@ -136,9 +146,7 @@ export default function ListeningScreen() {
                   </Text>
                 )}
                 {!audioUri && (
-                  <Text style={styles.uploadHint}>
-                    Tap to browse files
-                  </Text>
+                  <Text style={styles.uploadHint}>Tap to browse files</Text>
                 )}
               </View>
             </View>
@@ -171,7 +179,7 @@ export default function ListeningScreen() {
           🔒 Your audio data is processed securely
         </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -179,9 +187,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0A1F17",
-    padding: 24,
   },
-  
+
   // Header Styles
   header: {
     alignItems: "center",
@@ -351,6 +358,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     marginBottom: 16,
+    marginTop: 20,
   },
   disabledBtn: {
     backgroundColor: "#1A3D2E",
@@ -377,5 +385,11 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 13,
     color: "#6B9F88",
+  },
+
+  scrollContent: {
+    flexGrow: 1,
+    padding: 24,
+    paddingBottom: 40,
   },
 });

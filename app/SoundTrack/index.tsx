@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Animated,
   ScrollView,
@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { getDetections } from "./storage";
+
+import { getHistory } from "@/services/history";
 
 export default function SoundTrackHome() {
   const router = useRouter();
@@ -16,11 +17,23 @@ export default function SoundTrackHome() {
   const [slideAnim] = useState(new Animated.Value(50));
   const [detectionCount, setDetectionCount] = useState(0);
 
-  useEffect(() => {
-    // Load detection count
-    getDetections().then((data) => setDetectionCount(data.length));
+  useFocusEffect(
+    useCallback(() => {
+      const loadDetectionCount = async () => {
+        try {
+          const history = await getHistory();
+          const leopardDetections = history.filter((item) => item.is_leopard);
+          setDetectionCount(leopardDetections.length);
+        } catch (error) {
+          console.error("Failed to load detection count:", error);
+        }
+      };
 
-    // Entrance animations
+      loadDetectionCount();
+    }, []),
+  );
+
+  useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -115,9 +128,7 @@ export default function SoundTrackHome() {
               </View>
               <View style={styles.btnTextContainer}>
                 <Text style={styles.primaryText}>Start Listening</Text>
-                <Text style={styles.primarySubtext}>
-                  Begin audio detection
-                </Text>
+                <Text style={styles.primarySubtext}>Begin audio detection</Text>
               </View>
               <Text style={styles.btnArrow}>→</Text>
             </View>
@@ -190,7 +201,10 @@ export default function SoundTrackHome() {
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoTitle}>How It Works</Text>
               <Text style={styles.infoText}>
-               Our parabolic microphone captures distant wildlife sounds, which are analyzed using a trained sound recognition model developed through this research to identify Sri Lankan leopard vocalizations.
+                Our parabolic microphone captures distant wildlife sounds, which
+                are analyzed using a trained sound recognition model developed
+                through this research to identify Sri Lankan leopard
+                vocalizations.
               </Text>
             </View>
           </View>
