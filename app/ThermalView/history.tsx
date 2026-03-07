@@ -33,7 +33,7 @@ export default function HistoryScreen() {
       duration: 800,
       useNativeDriver: true,
     }).start();
-    
+
     fetchHistory();
   }, []);
 
@@ -41,7 +41,7 @@ export default function HistoryScreen() {
     try {
       const response = await fetch(`${API_CONFIG.BACKEND_URL}/api/history`);
       const data = await response.json();
-      
+
       if (data.success && data.history) {
         setHistoryData(data.history);
       }
@@ -60,22 +60,22 @@ export default function HistoryScreen() {
 
   // Logic to determine color based on health status and TSI
   const getStatusColor = (healthStatus: string, tsi: number) => {
-    if (healthStatus.includes("Normal")) return "#2ECC71";
-    if (healthStatus.includes("Mild")) return "#F1C40F";
-    if (healthStatus.includes("Moderate")) return "#F39C12";
+    if (healthStatus.includes("Normal")) return "#27AE60";
+    if (healthStatus.includes("Mild")) return "#F39C12";
+    if (healthStatus.includes("Moderate")) return "#E67E22";
     if (healthStatus.includes("Critical")) return "#E74C3C";
-    
+
     // Fallback to TSI-based coloring
-    if (tsi <= 0.05) return "#2ECC71";
-    if (tsi <= 0.10) return "#F1C40F";
-    if (tsi <= 0.15) return "#F39C12";
+    if (tsi <= 0.05) return "#27AE60";
+    if (tsi <= 0.10) return "#F39C12";
+    if (tsi <= 0.15) return "#E67E22";
     return "#E74C3C";
   };
 
   const formatDate = (timestamp: string) => {
     try {
       const date = new Date(timestamp);
-      return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     } catch {
       return timestamp;
     }
@@ -83,9 +83,9 @@ export default function HistoryScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#2ECC71" />
-        <Text style={{ color: '#8BC4A9', marginTop: 10 }}>Loading history...</Text>
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color="#27AE60" />
+        <Text style={{ color: "#4A6741", marginTop: 10 }}>Loading history...</Text>
       </View>
     );
   }
@@ -116,7 +116,7 @@ export default function HistoryScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor="#2ECC71"
+                tintColor="#27AE60"
               />
             }
             renderItem={({ item }) => {
@@ -151,7 +151,7 @@ export default function HistoryScreen() {
                       style={[
                         styles.tsiBadge,
                         {
-                          backgroundColor: statusColor + "20",
+                          backgroundColor: statusColor + "18",
                           borderColor: statusColor,
                         },
                       ]}
@@ -176,12 +176,12 @@ export default function HistoryScreen() {
 
                   <View style={styles.statusRow}>
                     <Text style={styles.statusLabel}>Temperature:</Text>
-                    <Text style={styles.statusValue}>
+                    <Text style={styles.statusValueDark}>
                       {item.leopard_mean_temp.toFixed(2)}°C
                     </Text>
                   </View>
 
-                  {/* Subtle Progress Bar logic */}
+                  {/* Subtle Progress Bar */}
                   <View style={styles.progressTrack}>
                     <View
                       style={[
@@ -214,7 +214,7 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#FFFFFF",
   },
   content: {
     flex: 1,
@@ -227,12 +227,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#0A1F17",
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#4A6741",
     marginTop: 4,
   },
   listPadding: {
@@ -240,14 +240,19 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 20,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
     overflow: "hidden",
     position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardTop: {
     flexDirection: "row",
@@ -264,12 +269,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   speciesName: {
-    color: "#FFFFFF",
+    color: "#0A1F17",
     fontSize: 16,
     fontWeight: "700",
   },
   dateText: {
-    color: "#4A6B5A",
+    color: "#7F8C8D",
     fontSize: 12,
     fontWeight: "600",
   },
@@ -286,7 +291,7 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 4,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#F0F0F0",
     borderRadius: 2,
     marginTop: 10,
     width: "100%",
@@ -301,7 +306,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    opacity: 0.5,
+    opacity: 0.6,
   },
   statusRow: {
     flexDirection: "row",
@@ -310,12 +315,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statusLabel: {
-    color: "#6B9F88",
+    color: "#7F8C8D",
     fontSize: 13,
     fontWeight: "600",
   },
   statusValue: {
-    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  statusValueDark: {
+    color: "#2C3E50",
     fontSize: 14,
     fontWeight: "700",
   },
@@ -332,12 +341,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#0A1F17",
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#4A6741",
     textAlign: "center",
   },
 });

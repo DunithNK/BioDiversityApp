@@ -101,8 +101,6 @@ export default function ThermalIndex() {
               </Text>
             </View>
           </View>
-
-          
         </Animated.View>
 
         {/* CTA Button */}
@@ -144,12 +142,8 @@ export default function ThermalIndex() {
           ]}
         >
           <View style={styles.featureBox}>
-            <Text style={styles.featureValue}>IR</Text>
-            <Text style={styles.featureLabel}>Infrared</Text>
-          </View>
-          <View style={styles.featureBox}>
-            <Text style={styles.featureValue}>AI</Text>
-            <Text style={styles.featureLabel}>Powered</Text>
+            <Text style={styles.featureValue}>TH</Text>
+            <Text style={styles.featureLabel}>Thermal</Text>
           </View>
           <View style={styles.featureBox}>
             <Text style={styles.featureValue}>24/7</Text>
@@ -172,7 +166,7 @@ export default function ThermalIndex() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     paddingTop: 60,
@@ -197,7 +191,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: "#3D1A1A",
+    backgroundColor: "#FFF0F0",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
@@ -216,24 +210,24 @@ const styles = StyleSheet.create({
   ring1: {
     width: 90,
     height: 90,
-    opacity: 0.3,
+    opacity: 0.25,
   },
   ring2: {
     width: 110,
     height: 110,
-    opacity: 0.15,
+    opacity: 0.12,
   },
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#0A1F17",
     marginBottom: 12,
     textAlign: "center",
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
-    color: "#8BC4A9",
+    color: "#4A6741",
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 20,
@@ -241,7 +235,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#3D1A1A",
+    backgroundColor: "#FFF0F0",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
@@ -267,14 +261,19 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     flexDirection: "row",
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#F7F9FC",
     borderRadius: 16,
     padding: 18,
     marginBottom: 12,
     borderLeftWidth: 4,
     borderLeftColor: "#E74C3C",
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   infoIcon: {
     fontSize: 28,
@@ -285,13 +284,13 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: "#0A1F17",
     fontWeight: "700",
     marginBottom: 4,
   },
   infoText: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#4A6741",
     lineHeight: 20,
   },
 
@@ -301,13 +300,18 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   ctaButton: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#F7F9FC",
     borderRadius: 18,
     borderWidth: 2,
     borderColor: "#E74C3C",
     overflow: "hidden",
     width: "100%",
     position: "relative",
+    shadowColor: "#E74C3C",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
   ctaContent: {
     flexDirection: "row",
@@ -318,14 +322,14 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#0A1F17",
     letterSpacing: -0.3,
   },
   ctaArrow: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#3D1A1A",
+    backgroundColor: "#FFF0F0",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -344,7 +348,7 @@ const styles = StyleSheet.create({
   },
   ctaHint: {
     fontSize: 13,
-    color: "#6B9F88",
+    color: "#7F8C8D",
     marginTop: 12,
     textAlign: "center",
   },
@@ -357,12 +361,17 @@ const styles = StyleSheet.create({
   },
   featureBox: {
     flex: 1,
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#F7F9FC",
     borderRadius: 16,
     padding: 16,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   featureValue: {
     fontSize: 20,
@@ -372,7 +381,7 @@ const styles = StyleSheet.create({
   },
   featureLabel: {
     fontSize: 11,
-    color: "#8BC4A9",
+    color: "#4A6741",
     textAlign: "center",
   },
 
@@ -384,12 +393,12 @@ const styles = StyleSheet.create({
   footerDivider: {
     width: "100%",
     height: 1,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E0E0E0",
     marginBottom: 20,
   },
   footerText: {
     fontSize: 13,
-    color: "#6B9F88",
+    color: "#7F8C8D",
     textAlign: "center",
   },
 });

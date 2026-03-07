@@ -73,7 +73,7 @@ export default function DecisionScreen() {
             <View style={styles.divider} />
 
             <View style={styles.decisionContainer}>
-              <Text style={styles.label}>AI DECISION</Text>
+              <Text style={styles.label}>FINAL DECISION</Text>
               <Text style={[styles.decisionText, { color: accentColor }]}>
                 {decision.toUpperCase()}
               </Text>

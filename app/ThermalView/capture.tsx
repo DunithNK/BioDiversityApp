@@ -203,13 +203,13 @@ export default function ThermalCapture() {
           ]}
         >
           <View style={styles.iconCircle}>
-            <Text style={styles.icon}>📸</Text>
+            <Text style={styles.icon}>🐆</Text>
           </View>
 
-          <Text style={styles.title}>Thermal Image Capture</Text>
+          <Text style={styles.title}>Thermal Leopard Capture</Text>
           <Text style={styles.subtitle}>
-            Capture wildlife thermal images using a FLIR ONE device or upload
-            previously captured thermal images for AI analysis
+            Capture leopard thermal images using a FLIR ONE device or upload
+            previously captured thermal images for Analysis
           </Text>
         </Animated.View>
 
@@ -223,7 +223,7 @@ export default function ThermalCapture() {
         <View style={styles.instructionCard}>
           <Text style={styles.step}>2</Text>
           <Text style={styles.instructionText}>
-            Upload the thermal image for AI analysis
+            Upload the thermal image for Analysis
           </Text>
         </View>
 
@@ -255,7 +255,7 @@ export default function ThermalCapture() {
         </TouchableOpacity>
 
         <Text style={styles.footerText}>
-          🔒 Images used only for research AI analysis
+          🔒 Images used only for research Analysis
         </Text>
       </ScrollView>
     </View>

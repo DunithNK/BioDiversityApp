@@ -419,7 +419,7 @@ Confidence Score:            ${confidence}
             <Text style={styles.title}>Thermal Analysis Report</Text>
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Live AI Assessment</Text>
+              <Text style={styles.statusText}>Live Assessment</Text>
             </View>
           </View>
 
