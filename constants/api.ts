@@ -8,8 +8,8 @@
 
 export const API_CONFIG = {
   // Change this based on your testing environment
-  BACKEND_URL: "http://192.168.1.82:5001", // For physical device (UPDATED: IP changed)
-  
+  BACKEND_URL: "http://172.20.10.2:5001", // For physical device (UPDATED: IP changed)
+
   // Endpoints
   ENDPOINTS: {
     ANALYZE: "/api/analyze",
@@ -18,7 +18,7 @@ export const API_CONFIG = {
     STATS: "/api/stats",
     MODEL_INFO: "/api/model/info",
   },
-  
+
   // For physical device, uncomment and update IP:
   // BACKEND_URL: "http://192.168.1.XXX:5001",
 };

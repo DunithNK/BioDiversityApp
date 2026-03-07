@@ -121,10 +121,10 @@ class ThermalStressAnalyzer:
         
         regions = {
             'head': (x1, y1, x1 + int(w * 0.3), y1 + int(h * 0.3)),
-            'torso': (x1 + int(w * 0.2), y1 + int(h * 0.25), x2 - int(w * 0.2), y2 - int(h * 0.3)),
-            'left_limb': (x1, y1 + int(h * 0.5), x1 + int(w * 0.25), y2),
-            'right_limb': (x2 - int(w * 0.25), y1 + int(h * 0.5), x2, y2),
-            'ocular': (x1 + int(w * 0.1), y1, x1 + int(w * 0.25), y1 + int(h * 0.15))
+            # 'torso': (x1 + int(w * 0.2), y1 + int(h * 0.25), x2 - int(w * 0.2), y2 - int(h * 0.3)),
+            # 'left_limb': (x1, y1 + int(h * 0.5), x1 + int(w * 0.25), y2),
+            # 'right_limb': (x2 - int(w * 0.25), y1 + int(h * 0.5), x2, y2),
+            # 'ocular': (x1 + int(w * 0.1), y1, x1 + int(w * 0.25), y1 + int(h * 0.15))
         }
         
         return regions

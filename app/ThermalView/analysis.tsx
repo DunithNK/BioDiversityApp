@@ -84,24 +84,17 @@ export default function ThermalAnalysis() {
   // 📥 Download Report Function
   const downloadReport = async () => {
     try {
-      // Generate HTML for PDF
       const htmlContent = generateReportHTML();
-      
-      // Generate PDF
       const { uri } = await Print.printToFileAsync({
         html: htmlContent,
         base64: false,
       });
-      
       console.log('PDF generated at:', uri);
-      
-      // Share the PDF
       await shareAsync(uri, {
         mimeType: 'application/pdf',
         dialogTitle: 'Save Thermal Analysis Report',
         UTI: 'com.adobe.pdf',
       });
-      
       Alert.alert('Success', 'Report PDF generated successfully!');
     } catch (error) {
       console.error('Error generating PDF report:', error);
@@ -144,8 +137,7 @@ Confidence Score:            ${confidence}
 `;
 
     regions.forEach((region: any) => {
-      report += `${region.name.toUpperCase()}
-`;
+      report += `${region.name.toUpperCase()}\n`;
       report += `  Mean:    ${region.mean_temp}°C\n`;
       report += `  Min:     ${region.min_temp}°C\n`;
       report += `  Max:     ${region.max_temp}°C\n`;
@@ -197,7 +189,6 @@ Confidence Score:            ${confidence}
   const generateReportHTML = () => {
     const date = new Date(timestamp).toLocaleString();
     
-    // Determine status color
     const getStatusColor = () => {
       if (status.includes('Normal')) return '#2ECC71';
       if (status.includes('Mild')) return '#F1C40F';
@@ -270,14 +261,8 @@ Confidence Score:            ${confidence}
               text-align: center;
               margin-bottom: 30px;
             }
-            .header h1 {
-              margin: 0 0 10px 0;
-              font-size: 28px;
-            }
-            .header p {
-              margin: 5px 0;
-              opacity: 0.9;
-            }
+            .header h1 { margin: 0 0 10px 0; font-size: 28px; }
+            .header p { margin: 5px 0; opacity: 0.9; }
             .section {
               background: white;
               padding: 25px;
@@ -310,11 +295,7 @@ Confidence Score:            ${confidence}
               text-transform: uppercase;
               margin-bottom: 5px;
             }
-            .summary-item span {
-              font-size: 18px;
-              color: #2C3E50;
-              font-weight: bold;
-            }
+            .summary-item span { font-size: 18px; color: #2C3E50; font-weight: bold; }
             .status-badge {
               display: inline-block;
               padding: 8px 20px;
@@ -324,30 +305,12 @@ Confidence Score:            ${confidence}
               font-weight: bold;
               font-size: 16px;
             }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 20px 0;
-            }
-            th {
-              background: #34495E;
-              color: white;
-              padding: 12px;
-              text-align: left;
-            }
-            td {
-              padding: 10px;
-              border-bottom: 1px solid #ddd;
-            }
-            tr:hover {
-              background: #f5f5f5;
-            }
-            ul {
-              padding-left: 20px;
-            }
-            li {
-              margin: 8px 0;
-            }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th { background: #34495E; color: white; padding: 12px; text-align: left; }
+            td { padding: 10px; border-bottom: 1px solid #ddd; }
+            tr:hover { background: #f5f5f5; }
+            ul { padding-left: 20px; }
+            li { margin: 8px 0; }
             .footer {
               text-align: center;
               padding: 20px;
@@ -374,14 +337,12 @@ Confidence Score:            ${confidence}
             <p><strong>ThermalVital Monitor System</strong></p>
             <p>Gal Oya Wildlife Conservation Project</p>
           </div>
-
           <div class="section">
             <h2>📋 Analysis Summary</h2>
             <p><strong>Analysis ID:</strong> ${analysisId}</p>
             <p><strong>Timestamp:</strong> ${date}</p>
             <p><strong>Species:</strong> ${animal}</p>
           </div>
-
           <div class="section">
             <h2>🌡️ Thermal Measurements</h2>
             <div class="summary-grid">
@@ -404,7 +365,6 @@ Confidence Score:            ${confidence}
             </div>
             <p><strong>Health Status:</strong> <span class="status-badge">${status}</span></p>
           </div>
-
           <div class="section">
             <h2>📊 Anatomical Region Analysis</h2>
             <table>
@@ -417,21 +377,15 @@ Confidence Score:            ${confidence}
                   <th style="text-align: center;">Std Dev</th>
                 </tr>
               </thead>
-              <tbody>
-                ${regionsHTML}
-              </tbody>
+              <tbody>${regionsHTML}</tbody>
             </table>
           </div>
-
           ${asymmetryHTML ? `<div class="section">${asymmetryHTML}</div>` : ''}
-          
           ${anomaliesHTML ? `<div class="section">${anomaliesHTML}</div>` : ''}
-
           <div class="section">
             <h2>💡 Recommendations</h2>
             ${recommendationsHTML}
           </div>
-
           <div class="section">
             <h2>✅ Release Decision</h2>
             <div class="decision-box">
@@ -440,7 +394,6 @@ Confidence Score:            ${confidence}
               Release Recommended: ${analysisData.release_recommended ? 'YES ✓' : 'NO ✗'}
             </div>
           </div>
-
           <div class="footer">
             <p>Report generated by ThermalVital Monitor</p>
             <p>© ${new Date().getFullYear()} Gal Oya Wildlife Conservation Project</p>
@@ -582,7 +535,7 @@ function Info({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A1F17" },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
   scrollContent: {
     paddingTop: 60,
     paddingHorizontal: 20,
@@ -592,13 +545,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#0A1F17",
     marginBottom: 12,
   },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5EE",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
@@ -609,23 +562,28 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#27AE60",
     marginRight: 8,
   },
   statusText: {
     fontSize: 12,
-    color: "#2ECC71",
+    color: "#27AE60",
     fontWeight: "700",
     textTransform: "uppercase",
   },
   card: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 24,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   infoRow: {
     flexDirection: "row",
@@ -636,18 +594,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E8F5EE",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 15,
   },
   label: {
-    color: "#8BC4A9",
+    color: "#7F8C8D",
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1,
   },
-  value: { color: "#FFFFFF", fontSize: 18, fontWeight: "600" },
+  value: { color: "#1A1A2E", fontSize: 18, fontWeight: "600" },
   accentBar: {
     position: "absolute",
     bottom: 0,
@@ -656,22 +614,24 @@ const styles = StyleSheet.create({
     height: 4,
   },
   recommendationCard: {
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#F0FAF4",
     borderRadius: 16,
     padding: 20,
     marginBottom: 25,
     borderLeftWidth: 4,
-    borderLeftColor: "#2ECC71",
+    borderLeftColor: "#27AE60",
+    borderWidth: 1,
+    borderColor: "#D5EDE0",
   },
   recoTitle: {
-    color: "#FFFFFF",
+    color: "#1A1A2E",
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 8,
   },
-  recoText: { color: "#8BC4A9", fontSize: 14, lineHeight: 20 },
+  recoText: { color: "#4A6741", fontSize: 14, lineHeight: 20 },
   decisionText: {
-    color: "#2ECC71",
+    color: "#27AE60",
     fontSize: 22,
     fontWeight: "800",
     textAlign: "center",
@@ -684,20 +644,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#F7F9FC",
     padding: 16,
     borderRadius: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   navItemText: {
-    color: "#8BC4A9",
+    color: "#2C3E50",
     fontSize: 14,
     fontWeight: "600",
   },
   navArrow: {
-    color: "#2ECC71",
+    color: "#27AE60",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -707,6 +672,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     marginBottom: 12,
+    shadowColor: "#3498DB",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   downloadButtonText: {
     color: "#FFFFFF",
@@ -714,26 +684,36 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   primaryButton: {
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#27AE60",
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: "center",
+    shadowColor: "#27AE60",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   primaryButtonText: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },
   regionsCard: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   sectionTitle: {
-    color: "#FFFFFF",
+    color: "#1A1A2E",
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 12,
@@ -744,28 +724,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#1A3D2E",
+    borderBottomColor: "#F0F0F0",
   },
   regionName: {
-    color: "#8BC4A9",
+    color: "#4A5568",
     fontSize: 14,
     fontWeight: "600",
   },
   regionTemp: {
-    color: "#2ECC71",
+    color: "#27AE60",
     fontSize: 16,
     fontWeight: "700",
   },
   anomaliesCard: {
-    backgroundColor: "#3D1A1A",
+    backgroundColor: "#FFF5F5",
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#E74C3C",
+    borderColor: "#FFCCCC",
   },
   anomalyText: {
-    color: "#FFCCCC",
+    color: "#C0392B",
     fontSize: 14,
     lineHeight: 22,
     marginBottom: 6,

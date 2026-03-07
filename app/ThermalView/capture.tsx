@@ -227,12 +227,12 @@ export default function ThermalCapture() {
           </Text>
         </View>
 
-        <TouchableOpacity 
-          onPress={openFlirApp} 
+        <TouchableOpacity
+          onPress={openFlirApp}
           style={styles.flirButton}
           disabled={isUploading}
         >
-          <Text style={styles.buttonText}>Open FLIR ONE App</Text>
+          <Text style={styles.flirButtonText}>Open FLIR ONE App</Text>
         </TouchableOpacity>
 
         <Text style={styles.orText}>OR</Text>
@@ -244,13 +244,13 @@ export default function ThermalCapture() {
         >
           {isUploading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#081417" />
-              <Text style={[styles.buttonText, { marginLeft: 10 }]}>
+              <ActivityIndicator size="small" color="#FFFFFF" />
+              <Text style={[styles.uploadButtonText, { marginLeft: 10 }]}>
                 Analyzing Image...
               </Text>
             </View>
           ) : (
-            <Text style={styles.buttonText}>Upload Thermal Image</Text>
+            <Text style={styles.uploadButtonText}>Upload Thermal Image</Text>
           )}
         </TouchableOpacity>
 
@@ -263,34 +263,43 @@ export default function ThermalCapture() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A1F17" },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
   scrollContent: { padding: 20, paddingTop: 60 },
   header: { alignItems: "center", marginBottom: 30 },
   iconCircle: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: "#3D1A1A",
+    backgroundColor: "#FFF0F0",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#FFCCCC",
   },
   icon: { fontSize: 32 },
   title: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#0A1F17",
     marginBottom: 10,
     textAlign: "center",
   },
-  subtitle: { fontSize: 14, color: "#8BC4A9", textAlign: "center" },
+  subtitle: { fontSize: 14, color: "#4A6741", textAlign: "center" },
   instructionCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#F7F9FC",
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   step: {
     fontSize: 18,
@@ -298,24 +307,35 @@ const styles = StyleSheet.create({
     color: "#E74C3C",
     marginRight: 10,
   },
-  instructionText: { fontSize: 14, color: "#CFFCF2" },
+  instructionText: { fontSize: 14, color: "#2C3E50" },
   flirButton: {
     backgroundColor: "#E74C3C",
     padding: 16,
     borderRadius: 14,
     marginTop: 20,
     alignItems: "center",
+    shadowColor: "#E74C3C",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
+  flirButtonText: { fontSize: 16, fontWeight: "600", color: "#FFFFFF" },
   uploadButton: {
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#27AE60",
     padding: 16,
     borderRadius: 14,
     alignItems: "center",
+    shadowColor: "#27AE60",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  buttonText: { fontSize: 16, fontWeight: "600", color: "#081417" },
-  orText: { color: "#6B9F88", textAlign: "center", marginVertical: 12 },
+  uploadButtonText: { fontSize: 16, fontWeight: "600", color: "#FFFFFF" },
+  orText: { color: "#7F8C8D", textAlign: "center", marginVertical: 12, fontWeight: "600" },
   footerText: {
-    color: "#6B9F88",
+    color: "#7F8C8D",
     textAlign: "center",
     marginTop: 30,
     fontSize: 12,

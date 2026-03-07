@@ -52,7 +52,7 @@ export default function TSIInfo() {
           {/* Scientific Formula Section */}
           <View style={styles.formulaSection}>
             <Text style={styles.formulaLabel}>Metric Logic</Text>
-            <Text style={styles.formula}>TSI = (Tₛᵤᵣբ - Tₐₘ♭) / (T꜀ₒᵣₑ - Tₐₘ♭)</Text>
+            <Text style={styles.formula}>TSI = (Current_Mean_Temp- Baseline_Normal_Temp) / Baseline_Normal_Temp</Text>
           </View>
 
           {/* Leopard Section */}
@@ -72,7 +72,7 @@ export default function TSIInfo() {
           {/* Sloth Bear Section */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardIcon}>🐻</Text>
+              <Text style={styles.cardIcon}></Text>
               <Text style={styles.cardTitle}>Sloth Bear</Text>
             </View>
             
