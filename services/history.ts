@@ -6,6 +6,13 @@ export interface HistoryLocation {
   [key: string]: number | null | undefined;
 }
 
+export interface Distance {
+  estimated_m?: number | null;
+  min_m?: number | null;
+  max_m?: number | null;
+  confidence?: number | null;
+}
+
 export interface HistoryItem {
   source: string;
   id: number;
@@ -15,6 +22,7 @@ export interface HistoryItem {
   is_leopard: boolean;
   confidence?: number | null;
   created_at: string;
+  distance?: Distance | null;
   location?: HistoryLocation | null;
 }
 

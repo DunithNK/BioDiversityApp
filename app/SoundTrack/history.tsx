@@ -1,5 +1,6 @@
+import { getHistory } from "@/services/history";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   RefreshControl,
   ScrollView,
@@ -8,7 +9,25 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { DetectionItem, getDetections } from "./storage";
+
+type DetectionItem = {
+  id: string;
+  mode: "live" | "recorded";
+  date: string;
+  latitude?: number;
+  longitude?: number;
+  frequency: string;
+
+  distance?: {
+    estimated_m?: number | null;
+    min_m?: number | null;
+    max_m?: number | null;
+    confidence?: number | null;
+  } | null;
+
+  confidence: number;
+  isLeopard: boolean;
+};
 
 export default function DetectionHistoryScreen() {
   const router = useRouter();
@@ -17,10 +36,40 @@ export default function DetectionHistoryScreen() {
   const [filter, setFilter] = useState<"all" | "live" | "recorded">("all");
 
   const loadHistory = async () => {
-    const data = await getDetections();
-    setHistory(data);
-  };
+    try {
+      const data = await getHistory();
 
+      const mapped: DetectionItem[] = data.map((item) => {
+        const confidenceRaw = item.confidence ?? 0;
+        const confidence =
+          confidenceRaw <= 1
+            ? Math.round(confidenceRaw * 100)
+            : Math.round(confidenceRaw);
+
+        const latitude = item.location?.latitude ?? undefined;
+        const longitude = item.location?.longitude ?? undefined;
+
+        return {
+          id: String(item.id),
+          mode: item.source === "live_session" ? "live" : "recorded",
+          date: item.created_at
+            ? new Date(item.created_at).toLocaleString()
+            : "Unknown date",
+          latitude,
+          longitude,
+          frequency: "N/A",
+          distance: item.distance ?? null,
+          confidence,
+          isLeopard: !!item.is_leopard,
+        };
+      });
+
+      setHistory(mapped);
+    } catch (error) {
+      console.error("Failed to load history:", error);
+      setHistory([]);
+    }
+  };
   useEffect(() => {
     loadHistory();
   }, []);
@@ -31,7 +80,22 @@ export default function DetectionHistoryScreen() {
     setRefreshing(false);
   };
 
-  const filteredHistory = history.filter((item) => {
+  const leopardHistory = useMemo(
+    () => history.filter((item) => item.isLeopard),
+    [history],
+  );
+
+  const liveCount = useMemo(
+    () => leopardHistory.filter((h) => h.mode === "live").length,
+    [leopardHistory],
+  );
+
+  const recordedCount = useMemo(
+    () => leopardHistory.filter((h) => h.mode === "recorded").length,
+    [leopardHistory],
+  );
+
+  const filteredHistory = leopardHistory.filter((item) => {
     if (filter === "all") return true;
     return item.mode === filter;
   });
@@ -50,7 +114,6 @@ export default function DetectionHistoryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.iconBadge}>
@@ -59,11 +122,11 @@ export default function DetectionHistoryScreen() {
         </View>
         <Text style={styles.title}>Detection History</Text>
         <Text style={styles.subtitle}>
-          {history.length} {history.length === 1 ? "detection" : "detections"} recorded
+          {leopardHistory.length}{" "}
+          {leopardHistory.length === 1 ? "detection" : "detections"} recorded
         </Text>
       </View>
 
-      {/* Filter Tabs */}
       <View style={styles.filterContainer}>
         <TouchableOpacity
           style={[styles.filterTab, filter === "all" && styles.activeFilter]}
@@ -76,7 +139,7 @@ export default function DetectionHistoryScreen() {
               filter === "all" && styles.activeFilterText,
             ]}
           >
-            All ({history.length})
+            All ({leopardHistory.length})
           </Text>
         </TouchableOpacity>
 
@@ -91,7 +154,7 @@ export default function DetectionHistoryScreen() {
               filter === "live" && styles.activeFilterText,
             ]}
           >
-            🎙️ Live ({history.filter((h) => h.mode === "live").length})
+            🎙️ Live ({liveCount})
           </Text>
         </TouchableOpacity>
 
@@ -109,12 +172,11 @@ export default function DetectionHistoryScreen() {
               filter === "recorded" && styles.activeFilterText,
             ]}
           >
-            📁 Recorded ({history.filter((h) => h.mode === "recorded").length})
+            📁 Recorded ({recordedCount})
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* History List */}
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -162,7 +224,6 @@ export default function DetectionHistoryScreen() {
               index === filteredHistory.length - 1 && styles.lastCard,
             ]}
           >
-            {/* Card Header */}
             <View style={styles.cardHeader}>
               <View style={styles.modeContainer}>
                 <View
@@ -200,7 +261,6 @@ export default function DetectionHistoryScreen() {
               </View>
             </View>
 
-            {/* Species Info */}
             <View style={styles.speciesSection}>
               <Text style={styles.speciesIcon}>🐆</Text>
               <View style={styles.speciesTextContainer}>
@@ -209,7 +269,6 @@ export default function DetectionHistoryScreen() {
               </View>
             </View>
 
-            {/* Detection Details */}
             <View style={styles.detailsRow}>
               <View style={styles.detailItem}>
                 <Text style={styles.detailIcon}>〰️</Text>
@@ -225,13 +284,19 @@ export default function DetectionHistoryScreen() {
                 <Text style={styles.detailIcon}>📍</Text>
                 <View>
                   <Text style={styles.detailLabel}>Distance</Text>
-                  <Text style={styles.detailValue}>{item.distance}</Text>
+                  <Text style={styles.detailValue}>
+                    {item.distance?.min_m != null &&
+                    item.distance?.max_m != null
+                      ? `${Math.round(item.distance.min_m)} – ${Math.round(item.distance.max_m)} m`
+                      : item.distance?.estimated_m != null
+                        ? `${Math.round(item.distance.estimated_m)} m`
+                        : "N/A"}
+                  </Text>
                 </View>
               </View>
             </View>
 
-            {/* Location (if available) */}
-            {item.latitude && item.longitude && (
+            {item.latitude !== undefined && item.longitude !== undefined && (
               <View style={styles.locationContainer}>
                 <Text style={styles.locationIcon}>🌍</Text>
                 <Text style={styles.locationText}>
@@ -240,7 +305,6 @@ export default function DetectionHistoryScreen() {
               </View>
             )}
 
-            {/* Confidence Level Indicator */}
             <View style={styles.confidenceBar}>
               <View
                 style={[
@@ -263,11 +327,9 @@ export default function DetectionHistoryScreen() {
           </View>
         ))}
 
-        {/* Bottom Spacing */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.newDetectionBtn}
@@ -293,17 +355,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0A1F17",
-    paddingTop: 40,
   },
-
-  // Header Styles
   header: {
-    alignItems: "center",
+    paddingTop: 40,
     paddingHorizontal: 24,
-    marginBottom: 20,
+    paddingBottom: 20,
+    backgroundColor: "#0A1F17",
   },
   headerTop: {
-    marginBottom: 12,
+    alignItems: "center",
+    marginBottom: 16,
   },
   iconBadge: {
     width: 64,
@@ -312,72 +373,67 @@ const styles = StyleSheet.create({
     backgroundColor: "#1A3D2E",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: "#2ECC71",
   },
   headerIcon: {
-    fontSize: 32,
+    fontSize: 28,
   },
   title: {
-    fontSize: 28,
-    color: "#FFFFFF",
+    fontSize: 30,
     fontWeight: "bold",
-    marginBottom: 6,
+    color: "#FFFFFF",
     textAlign: "center",
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#8BC4A9",
     textAlign: "center",
   },
-
-  // Filter Tabs
   filterContainer: {
     flexDirection: "row",
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     gap: 8,
-    marginBottom: 20,
   },
   filterTab: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
     backgroundColor: "#0F2F23",
-    alignItems: "center",
-    borderWidth: 2,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    borderWidth: 1,
     borderColor: "#1A3D2E",
+    alignItems: "center",
   },
   activeFilter: {
-    backgroundColor: "#123B2C",
+    backgroundColor: "#2ECC71",
     borderColor: "#2ECC71",
   },
   filterText: {
-    fontSize: 13,
     color: "#8BC4A9",
+    fontSize: 12,
     fontWeight: "600",
+    textAlign: "center",
   },
   activeFilterText: {
-    color: "#2ECC71",
+    color: "#0A1F17",
   },
-
-  // Scroll View
   scrollView: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
   },
-
-  // Empty State
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 60,
-    paddingHorizontal: 40,
+    paddingHorizontal: 24,
   },
   emptyIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     backgroundColor: "#0F2F23",
     alignItems: "center",
     justifyContent: "center",
@@ -386,13 +442,13 @@ const styles = StyleSheet.create({
     borderColor: "#1A3D2E",
   },
   emptyIcon: {
-    fontSize: 48,
+    fontSize: 36,
   },
   emptyTitle: {
-    fontSize: 22,
-    color: "#FFFFFF",
+    fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 8,
+    color: "#FFFFFF",
+    marginBottom: 10,
     textAlign: "center",
   },
   emptyText: {
@@ -404,33 +460,28 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     backgroundColor: "#2ECC71",
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    paddingHorizontal: 24,
     borderRadius: 12,
   },
   emptyButtonText: {
     color: "#0A1F17",
     fontWeight: "bold",
-    fontSize: 15,
   },
-
-  // History Cards
   card: {
     backgroundColor: "#0F2F23",
     borderRadius: 20,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: "#1A3D2E",
   },
   firstCard: {
-    marginTop: 0,
+    marginTop: 4,
   },
   lastCard: {
-    marginBottom: 0,
+    marginBottom: 8,
   },
-
-  // Card Header
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -439,180 +490,165 @@ const styles = StyleSheet.create({
   },
   modeContainer: {
     flexDirection: "row",
-    alignItems: "center",
   },
   modeBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 10,
-    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
   liveBadge: {
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#2ECC7120",
   },
   recordedBadge: {
-    backgroundColor: "#2C1A3D",
+    backgroundColor: "#3498DB20",
   },
   modeIcon: {
-    fontSize: 16,
+    marginRight: 6,
+    fontSize: 14,
   },
   modeText: {
     color: "#FFFFFF",
-    fontSize: 13,
     fontWeight: "600",
+    fontSize: 13,
   },
   confidenceBadge: {
-    paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
   confidenceText: {
-    fontSize: 14,
     fontWeight: "bold",
+    fontSize: 13,
   },
-
-  // Species Section
   speciesSection: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#1A3D2E",
   },
   speciesIcon: {
-    fontSize: 40,
-    marginRight: 12,
+    fontSize: 36,
+    marginRight: 14,
   },
   speciesTextContainer: {
     flex: 1,
   },
   speciesName: {
-    fontSize: 18,
     color: "#FFFFFF",
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "bold",
     marginBottom: 4,
   },
   dateText: {
-    fontSize: 13,
     color: "#8BC4A9",
+    fontSize: 13,
   },
-
-  // Details Row
   detailsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
+    alignItems: "center",
+    marginBottom: 14,
+    backgroundColor: "#0A1F17",
+    borderRadius: 14,
+    padding: 14,
   },
   detailItem: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
-    gap: 8,
-  },
-  detailDivider: {
-    width: 1,
-    backgroundColor: "#1A3D2E",
-    marginHorizontal: 12,
   },
   detailIcon: {
     fontSize: 20,
+    marginRight: 10,
   },
   detailLabel: {
-    fontSize: 11,
     color: "#8BC4A9",
+    fontSize: 11,
     marginBottom: 2,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   detailValue: {
-    fontSize: 13,
     color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: "600",
   },
-
-  // Location
+  detailDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: "#1A3D2E",
+    marginHorizontal: 12,
+  },
   locationContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1A3D2E",
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 12,
-    gap: 8,
+    marginBottom: 14,
+    backgroundColor: "#0A1F17",
+    borderRadius: 12,
+    padding: 12,
   },
   locationIcon: {
     fontSize: 16,
+    marginRight: 8,
   },
   locationText: {
-    fontSize: 12,
     color: "#8BC4A9",
-    fontFamily: "monospace",
+    fontSize: 13,
+    fontWeight: "500",
   },
-
-  // Confidence Bar
   confidenceBar: {
-    height: 6,
+    height: 8,
     backgroundColor: "#1A3D2E",
-    borderRadius: 3,
+    borderRadius: 6,
     overflow: "hidden",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   confidenceFill: {
     height: "100%",
-    borderRadius: 3,
+    borderRadius: 6,
   },
   confidenceLabel: {
     fontSize: 12,
     fontWeight: "600",
     textAlign: "right",
   },
-
-  // Bottom Spacing
   bottomSpacer: {
-    height: 20,
+    height: 90,
   },
-
-  // Action Buttons
   buttonContainer: {
     flexDirection: "row",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
     gap: 12,
+    padding: 16,
+    paddingTop: 12,
+    backgroundColor: "#0A1F17",
     borderTopWidth: 1,
     borderTopColor: "#1A3D2E",
   },
   newDetectionBtn: {
-    flex: 2,
+    flex: 1,
     backgroundColor: "#2ECC71",
     paddingVertical: 16,
-    borderRadius: 14,
-    shadowColor: "#2ECC71",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   newDetectionText: {
-    textAlign: "center",
     color: "#0A1F17",
     fontWeight: "bold",
     fontSize: 16,
   },
   backBtn: {
-    flex: 1,
-    backgroundColor: "#0F2F23",
+    paddingHorizontal: 20,
     paddingVertical: 16,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: "#2ECC71",
+    alignItems: "center",
+    justifyContent: "center",
   },
   backText: {
-    textAlign: "center",
     color: "#2ECC71",
-    fontWeight: "600",
+    fontWeight: "bold",
     fontSize: 16,
   },
 });
