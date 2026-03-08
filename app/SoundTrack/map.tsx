@@ -86,11 +86,32 @@ export default function DetectionMapScreen() {
     }
   };
 
-  const liveDetections = detections.filter((d) => d.mode === "live");
-  const recordedDetections = detections.filter((d) => d.mode === "recorded");
+  const criticalDetections = detections.filter(
+    (d) => d.severity?.toLowerCase() === "critical",
+  );
+  const highDetections = detections.filter(
+    (d) => d.severity?.toLowerCase() === "high",
+  );
+  const mediumDetections = detections.filter(
+    (d) => d.severity?.toLowerCase() === "medium",
+  );
+  const lowDetections = detections.filter(
+    (d) => d.severity?.toLowerCase() === "low",
+  );
 
-  const getMarkerColor = (mode: string) => {
-    return mode === "live" ? "#2ECC71" : "#9B59B6";
+  const getSeverityColor = (severity?: string | null) => {
+    switch (severity?.toLowerCase()) {
+      case "critical":
+        return "#E74C3C";
+      case "high":
+        return "#F39C12";
+      case "medium":
+        return "#F1C40F";
+      case "low":
+        return "#2ECC71";
+      default:
+        return "#95A5A6";
+    }
   };
 
   const formatConfidence = (confidence?: number | null) => {
@@ -148,13 +169,13 @@ export default function DetectionMapScreen() {
                 latitude: item.location!.latitude!,
                 longitude: item.location!.longitude!,
               }}
-              pinColor={getMarkerColor(item.mode)}
+              pinColor={getSeverityColor(item.mode)}
               onPress={() => handleMarkerPress(item)}
             >
               <View
                 style={[
                   styles.customMarker,
-                  { backgroundColor: getMarkerColor(item.mode) },
+                  { backgroundColor: getSeverityColor(item.mode) },
                 ]}
               >
                 <Text style={styles.markerIcon}>
@@ -190,14 +211,27 @@ export default function DetectionMapScreen() {
           <View style={styles.legendHeader}>
             <Text style={styles.legendTitle}>Legend</Text>
           </View>
+
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: "#E74C3C" }]} />
+            <Text style={styles.legendText}>Critical</Text>
+          </View>
+
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: "#F39C12" }]} />
+            <Text style={styles.legendText}>High</Text>
+          </View>
+
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: "#F1C40F" }]} />
+            <Text style={styles.legendText}>Medium</Text>
+          </View>
+
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: "#2ECC71" }]} />
-            <Text style={styles.legendText}>Live Detection</Text>
+            <Text style={styles.legendText}>Low</Text>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: "#9B59B6" }]} />
-            <Text style={styles.legendText}>Recorded Audio</Text>
-          </View>
+
           <View style={styles.legendItem}>
             <View style={styles.legendLine} />
             <Text style={styles.legendText}>Park Boundary</Text>
@@ -212,19 +246,41 @@ export default function DetectionMapScreen() {
                 <Text style={styles.statValue}>{detections.length}</Text>
                 <Text style={styles.statLabel}>Total</Text>
               </View>
+
               <View style={styles.statDivider} />
+
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: "#E74C3C" }]}>
+                  {criticalDetections.length}
+                </Text>
+                <Text style={styles.statLabel}>Critical</Text>
+              </View>
+
+              <View style={styles.statDivider} />
+
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: "#F39C12" }]}>
+                  {highDetections.length}
+                </Text>
+                <Text style={styles.statLabel}>High</Text>
+              </View>
+
+              <View style={styles.statDivider} />
+
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: "#F1C40F" }]}>
+                  {mediumDetections.length}
+                </Text>
+                <Text style={styles.statLabel}>Medium</Text>
+              </View>
+
+              <View style={styles.statDivider} />
+
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: "#2ECC71" }]}>
-                  {liveDetections.length}
+                  {lowDetections.length}
                 </Text>
-                <Text style={styles.statLabel}>Live</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: "#9B59B6" }]}>
-                  {recordedDetections.length}
-                </Text>
-                <Text style={styles.statLabel}>Recorded</Text>
+                <Text style={styles.statLabel}>Low</Text>
               </View>
             </View>
           </Animated.View>
@@ -308,7 +364,17 @@ export default function DetectionMapScreen() {
 
                   <View style={styles.infoItem}>
                     <Text style={styles.infoLabel}>Severity</Text>
-                    <Text style={styles.infoValue}>
+                    <Text
+                      style={[
+                        styles.infoValue,
+                        {
+                          color: getSeverityColor(
+                            selectedMarkerDetail?.severity ??
+                              selectedMarker.severity,
+                          ),
+                        },
+                      ]}
+                    >
                       {selectedMarkerDetail?.severity ??
                         selectedMarker.severity ??
                         "N/A"}
