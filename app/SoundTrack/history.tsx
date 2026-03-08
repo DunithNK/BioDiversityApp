@@ -51,7 +51,7 @@ export default function DetectionHistoryScreen() {
 
         return {
           id: String(item.id),
-          mode: item.source === "live_session" ? "live" : "recorded",
+          mode: item.source === "live" ? "live" : "recorded",
           date: item.created_at
             ? new Date(item.created_at).toLocaleString()
             : "Unknown date",

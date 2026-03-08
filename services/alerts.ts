@@ -7,14 +7,16 @@ export interface AlertLocation {
 }
 
 export interface AlertDistance {
-  value?: number | null;
-  unit?: string | null;
-  [key: string]: string | number | null | undefined;
+  estimated_m?: number | null;
+  min_m?: number | null;
+  max_m?: number | null;
+  confidence?: number | null;
 }
 
 export interface AlertListItem {
   alert_id: string;
   detected_at: string;
+  mode: string;
   status: string;
   severity: string;
   location?: AlertLocation | null;
@@ -24,6 +26,7 @@ export interface AlertDetail {
   alert_id: string;
   live_session_id: number;
   device_id?: string | null;
+  mode: string;
   status: string;
   risk_score: number;
   severity: string;

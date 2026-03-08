@@ -1,10 +1,17 @@
+import {
+  AlertDetail,
+  AlertListItem,
+  getAlertDetail,
+  getAlerts,
+} from "@/services/alerts";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import MapView, {
   Callout,
@@ -12,9 +19,6 @@ import MapView, {
   Polygon,
   PROVIDER_GOOGLE,
 } from "react-native-maps";
-import { DetectionItem, getDetections } from "./storage";
-
-/* ===== MAP REGION FROM YOUR COORDINATES ===== */
 
 const GAL_OYA_REGION = {
   latitude: 7.19,
@@ -23,52 +27,79 @@ const GAL_OYA_REGION = {
   longitudeDelta: 0.3,
 };
 
-/* ===== BOUNDARY FROM YOUR 4 CORNERS ===== */
-
 const GAL_OYA_BOUNDARY = [
-  { latitude: 7.336537, longitude: 81.347783 }, // Top Left
-  { latitude: 7.343215, longitude: 81.567667 }, // Top Right
-  { latitude: 7.042637, longitude: 81.578346 }, // Bottom Right
-  { latitude: 7.040217, longitude: 81.353147 }, // Bottom Left
+  { latitude: 7.336537, longitude: 81.347783 },
+  { latitude: 7.343215, longitude: 81.567667 },
+  { latitude: 7.042637, longitude: 81.578346 },
+  { latitude: 7.040217, longitude: 81.353147 },
 ];
 
 export default function DetectionMapScreen() {
-  const [detections, setDetections] = useState<DetectionItem[]>([]);
-  const [selectedMarker, setSelectedMarker] = useState<DetectionItem | null>(null);
+  const [detections, setDetections] = useState<AlertListItem[]>([]);
+  const [selectedMarker, setSelectedMarker] = useState<AlertListItem | null>(
+    null,
+  );
+  const [selectedMarkerDetail, setSelectedMarkerDetail] =
+    useState<AlertDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [fadeAnim] = useState(new Animated.Value(0));
 
   useEffect(() => {
-    getDetections().then((data) => {
-      const filtered = data.filter((d) => d.latitude && d.longitude);
-      setDetections(filtered);
-    });
+    const loadAlerts = async () => {
+      try {
+        const data = await getAlerts();
 
-    // Fade in animation
+        const filtered = data.filter(
+          (d) => d.location?.latitude != null && d.location?.longitude != null,
+        );
+
+        setDetections(filtered);
+      } catch (error) {
+        console.error("Failed to load alerts:", error);
+        setDetections([]);
+      }
+    };
+
+    loadAlerts();
+
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 800,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [fadeAnim]);
+
+  const handleMarkerPress = async (item: AlertListItem) => {
+    setSelectedMarker(item);
+    setSelectedMarkerDetail(null);
+    setLoadingDetail(true);
+
+    try {
+      const detail = await getAlertDetail(item.alert_id);
+      setSelectedMarkerDetail(detail);
+    } catch (error) {
+      console.error("Failed to load alert detail:", error);
+      setSelectedMarkerDetail(null);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
 
   const liveDetections = detections.filter((d) => d.mode === "live");
   const recordedDetections = detections.filter((d) => d.mode === "recorded");
-  const avgConfidence =
-    detections.length > 0
-      ? Math.round(
-          detections.reduce((sum, d) => sum + d.confidence, 0) /
-            detections.length
-        )
-      : 0;
 
   const getMarkerColor = (mode: string) => {
     return mode === "live" ? "#2ECC71" : "#9B59B6";
   };
 
+  const formatConfidence = (confidence?: number | null) => {
+    if (confidence == null) return "N/A";
+    return `${Math.round(confidence <= 1 ? confidence * 100 : confidence)}%`;
+  };
+
   return (
     <View style={styles.container}>
-      {/* Header */}
       <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
         <View style={styles.headerContent}>
           <View style={styles.headerIcon}>
@@ -89,7 +120,6 @@ export default function DetectionMapScreen() {
         </View>
       </Animated.View>
 
-      {/* Map */}
       <View style={styles.mapContainer}>
         <MapView
           provider={PROVIDER_GOOGLE}
@@ -104,7 +134,6 @@ export default function DetectionMapScreen() {
           maxZoomLevel={16}
           mapType="hybrid"
         >
-          {/* Park boundary */}
           <Polygon
             coordinates={GAL_OYA_BOUNDARY}
             strokeColor="#2ECC71"
@@ -112,44 +141,44 @@ export default function DetectionMapScreen() {
             fillColor="rgba(46, 204, 113, 0.15)"
           />
 
-          {/* Hotspot markers */}
           {detections.map((item) => (
             <Marker
-              key={item.id}
+              key={item.alert_id}
               coordinate={{
-                latitude: item.latitude!,
-                longitude: item.longitude!,
+                latitude: item.location!.latitude!,
+                longitude: item.location!.longitude!,
               }}
               pinColor={getMarkerColor(item.mode)}
-              onPress={() => setSelectedMarker(item)}
+              onPress={() => handleMarkerPress(item)}
             >
               <View
                 style={[
                   styles.customMarker,
-                  {
-                    backgroundColor: getMarkerColor(item.mode),
-                  },
+                  { backgroundColor: getMarkerColor(item.mode) },
                 ]}
               >
                 <Text style={styles.markerIcon}>
                   {item.mode === "live" ? "🎙️" : "📁"}
                 </Text>
               </View>
+
               <Callout>
                 <View style={styles.callout}>
                   <Text style={styles.calloutTitle}>Leopard Detected</Text>
                   <Text style={styles.calloutText}>
                     Mode: {item.mode === "live" ? "Live" : "Recorded"}
                   </Text>
-                  <Text style={styles.calloutText}>Date: {item.date}</Text>
                   <Text style={styles.calloutText}>
-                    Confidence: {item.confidence}%
+                    Date:{" "}
+                    {item.detected_at
+                      ? new Date(item.detected_at).toLocaleString()
+                      : "Unknown date"}
                   </Text>
                   <Text style={styles.calloutText}>
-                    Frequency: {item.frequency}
+                    Severity: {item.severity ?? "N/A"}
                   </Text>
                   <Text style={styles.calloutText}>
-                    Distance: {item.distance}
+                    Status: {item.status ?? "N/A"}
                   </Text>
                 </View>
               </Callout>
@@ -157,7 +186,6 @@ export default function DetectionMapScreen() {
           ))}
         </MapView>
 
-        {/* Legend */}
         <Animated.View style={[styles.legend, { opacity: fadeAnim }]}>
           <View style={styles.legendHeader}>
             <Text style={styles.legendTitle}>Legend</Text>
@@ -176,7 +204,6 @@ export default function DetectionMapScreen() {
           </View>
         </Animated.View>
 
-        {/* Statistics Card */}
         {showStats && (
           <Animated.View style={[styles.statsCard, { opacity: fadeAnim }]}>
             <Text style={styles.statsTitle}>Detection Statistics</Text>
@@ -199,17 +226,11 @@ export default function DetectionMapScreen() {
                 </Text>
                 <Text style={styles.statLabel}>Recorded</Text>
               </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{avgConfidence}%</Text>
-                <Text style={styles.statLabel}>Avg. Conf.</Text>
-              </View>
             </View>
           </Animated.View>
         )}
       </View>
 
-      {/* Selected Marker Info */}
       {selectedMarker && (
         <Animated.View style={[styles.infoCard, { opacity: fadeAnim }]}>
           <View style={styles.infoHeader}>
@@ -218,65 +239,114 @@ export default function DetectionMapScreen() {
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoTitle}>Detection Details</Text>
-              <Text style={styles.infoDate}>{selectedMarker.date}</Text>
+              <Text style={styles.infoDate}>
+                {selectedMarker.detected_at
+                  ? new Date(selectedMarker.detected_at).toLocaleString()
+                  : "Unknown date"}
+              </Text>
             </View>
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={() => setSelectedMarker(null)}
+              onPress={() => {
+                setSelectedMarker(null);
+                setSelectedMarkerDetail(null);
+              }}
             >
               <Text style={styles.closeText}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.infoContent}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Mode</Text>
-                <View
-                  style={[
-                    styles.infoBadge,
-                    {
-                      backgroundColor:
-                        selectedMarker.mode === "live" ? "#1A3D2E" : "#2C1A3D",
-                    },
-                  ]}
-                >
-                  <Text style={styles.infoBadgeText}>
-                    {selectedMarker.mode === "live" ? "🎙️ Live" : "📁 Recorded"}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Confidence</Text>
-                <Text style={styles.infoValueLarge}>
-                  {selectedMarker.confidence}%
+            {loadingDetail ? (
+              <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                <ActivityIndicator size="small" color="#2ECC71" />
+                <Text style={{ color: "#8BC4A9", marginTop: 10 }}>
+                  Loading details...
                 </Text>
               </View>
-            </View>
+            ) : (
+              <>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Mode</Text>
+                    <View
+                      style={[
+                        styles.infoBadge,
+                        {
+                          backgroundColor:
+                            selectedMarker.mode === "live"
+                              ? "#1A3D2E"
+                              : "#2C1A3D",
+                        },
+                      ]}
+                    >
+                      <Text style={styles.infoBadgeText}>
+                        {selectedMarker.mode === "live"
+                          ? "🎙️ Live"
+                          : "📁 Recorded"}
+                      </Text>
+                    </View>
+                  </View>
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Frequency</Text>
-                <Text style={styles.infoValue}>{selectedMarker.frequency}</Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Distance</Text>
-                <Text style={styles.infoValue}>{selectedMarker.distance}</Text>
-              </View>
-            </View>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Confidence</Text>
+                    <Text style={styles.infoValueLarge}>
+                      {formatConfidence(selectedMarkerDetail?.confidence)}
+                    </Text>
+                  </View>
+                </View>
 
-            <View style={styles.coordinatesContainer}>
-              <Text style={styles.infoLabel}>Coordinates</Text>
-              <Text style={styles.coordinatesText}>
-                {selectedMarker.latitude?.toFixed(6)},{" "}
-                {selectedMarker.longitude?.toFixed(6)}
-              </Text>
-            </View>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Distance</Text>
+                    <Text style={styles.infoValue}>
+                      {"~ " +
+                        selectedMarkerDetail?.distance.estimated_m +
+                        " meter"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Severity</Text>
+                    <Text style={styles.infoValue}>
+                      {selectedMarkerDetail?.severity ??
+                        selectedMarker.severity ??
+                        "N/A"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Status</Text>
+                    <Text style={styles.infoValue}>
+                      {selectedMarkerDetail?.status ??
+                        selectedMarker.status ??
+                        "N/A"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Risk Score</Text>
+                    <Text style={styles.infoValue}>
+                      {selectedMarkerDetail?.risk_score ?? "N/A"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.coordinatesContainer}>
+                  <Text style={styles.infoLabel}>Coordinates</Text>
+                  <Text style={styles.coordinatesText}>
+                    {selectedMarker.location?.latitude?.toFixed(6)},{" "}
+                    {selectedMarker.location?.longitude?.toFixed(6)}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         </Animated.View>
       )}
 
-      {/* Empty State */}
       {detections.length === 0 && (
         <Animated.View style={[styles.emptyState, { opacity: fadeAnim }]}>
           <View style={styles.emptyIconContainer}>
@@ -284,8 +354,7 @@ export default function DetectionMapScreen() {
           </View>
           <Text style={styles.emptyTitle}>No Detections Yet</Text>
           <Text style={styles.emptyText}>
-            Detection locations will appear on the map once you start recording
-            leopard sounds
+            Detection locations will appear on the map once alerts are available
           </Text>
         </Animated.View>
       )}
@@ -299,10 +368,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#0A1F17",
   },
 
-  // Header
   header: {
     backgroundColor: "#0F2F23",
-    paddingTop: 50,
+    paddingTop: 10,
     paddingBottom: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 2,
@@ -351,7 +419,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
 
-  // Map Container
   mapContainer: {
     flex: 1,
     position: "relative",
@@ -360,7 +427,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Custom Marker
   customMarker: {
     width: 36,
     height: 36,
@@ -379,7 +445,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
 
-  // Callout
   callout: {
     padding: 10,
     minWidth: 180,
@@ -396,7 +461,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
 
-  // Legend
   legend: {
     position: "absolute",
     top: 16,
@@ -444,7 +508,6 @@ const styles = StyleSheet.create({
     color: "#8BC4A9",
   },
 
-  // Statistics Card
   statsCard: {
     position: "absolute",
     bottom: 16,
@@ -490,7 +553,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Info Card
   infoCard: {
     position: "absolute",
     bottom: 16,
@@ -598,7 +660,6 @@ const styles = StyleSheet.create({
     fontFamily: "monospace",
   },
 
-  // Empty State
   emptyState: {
     position: "absolute",
     top: "30%",
