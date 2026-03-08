@@ -45,6 +45,8 @@ export default function DetectionMapScreen() {
   const [showStats, setShowStats] = useState(true);
   const [fadeAnim] = useState(new Animated.Value(0));
 
+  const [isMapLocked, setIsMapLocked] = useState(true);
+
   useEffect(() => {
     const loadAlerts = async () => {
       try {
@@ -146,12 +148,12 @@ export default function DetectionMapScreen() {
           provider={PROVIDER_GOOGLE}
           style={styles.map}
           initialRegion={GAL_OYA_REGION}
-          scrollEnabled={false}
-          rotateEnabled={false}
-          pitchEnabled={false}
-          zoomEnabled
-          zoomTapEnabled
-          minZoomLevel={11}
+          scrollEnabled={!isMapLocked}
+          rotateEnabled={!isMapLocked}
+          pitchEnabled={!isMapLocked}
+          zoomEnabled={!isMapLocked}
+          zoomTapEnabled={!isMapLocked}
+          minZoomLevel={10}
           maxZoomLevel={16}
           mapType="hybrid"
         >
@@ -206,6 +208,15 @@ export default function DetectionMapScreen() {
             </Marker>
           ))}
         </MapView>
+
+        <TouchableOpacity
+          style={styles.mapLockButton}
+          onPress={() => setIsMapLocked((prev) => !prev)}
+        >
+          <Text style={styles.mapLockButtonText}>
+            {isMapLocked ? "🔒" : "↔️"}
+          </Text>
+        </TouchableOpacity>
 
         <Animated.View style={[styles.legend, { opacity: fadeAnim }]}>
           <View style={styles.legendHeader}>
@@ -762,5 +773,27 @@ const styles = StyleSheet.create({
     color: "#8BC4A9",
     textAlign: "center",
     lineHeight: 20,
+  },
+
+  mapLockButton: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 24,
+    backgroundColor: "#0F2F23",
+    borderWidth: 2,
+    borderColor: "#2ECC71",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  mapLockButtonText: {
+    fontSize: 22,
   },
 });
