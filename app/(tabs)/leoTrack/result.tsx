@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 
-const BACKEND_URL = "http://172.20.10.2:8000";
+const BACKEND_URL = "http://192.168.1.3:8000";
 
 type Assessment = {
   alert_id: string;
@@ -28,6 +28,7 @@ export default function ResultScreen() {
 
   const [loading, setLoading] = useState(true);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [alertStatus, setAlertStatus] = useState<"active" | "released">("active");
   const [releasing, setReleasing] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
@@ -43,17 +44,23 @@ export default function ResultScreen() {
       return;
     }
 
-    fetch(`${BACKEND_URL}/assessment/${alertId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data || data.error) {
+    // Fetch assessment and alert status in parallel
+    Promise.all([
+      fetch(`${BACKEND_URL}/assessment/${alertId}`).then((res) => res.json()),
+      fetch(`${BACKEND_URL}/alert/${alertId}`).then((res) => res.ok ? res.json() : null),
+    ])
+      .then(([assessmentData, alertData]) => {
+        if (!assessmentData || assessmentData.error) {
           setAssessment(null);
         } else {
           setAssessment({
-            alert_id: data.alert_id,
-            severity: data.severity,
-            score: data.score,
+            alert_id: assessmentData.alert_id,
+            severity: assessmentData.severity,
+            score: assessmentData.score,
           });
+        }
+        if (alertData && alertData.status) {
+          setAlertStatus(alertData.status);
         }
       })
       .catch(() => setAssessment(null))
@@ -752,23 +759,37 @@ export default function ResultScreen() {
           </Text>
         </Animated.View>
 
-        {/* ---- Release Leopard Button ---- */}
-        <Animated.View style={{ opacity: fadeAnim, marginBottom: 16 }}>
-          <TouchableOpacity
-            style={[
-              styles.releaseButton,
-              releasing && styles.releaseButtonDisabled,
-            ]}
-            onPress={() => setShowReleaseModal(true)}
-            activeOpacity={0.85}
-            disabled={releasing}
-          >
-            <Text style={styles.releaseIcon}>🐆</Text>
-            <Text style={styles.releaseText}>
-              {releasing ? "Releasing..." : "Release Leopard"}
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
+        {/* ---- Release Leopard Button (only for active alerts) ---- */}
+        {alertStatus !== "released" && (
+          <Animated.View style={{ opacity: fadeAnim, marginBottom: 16 }}>
+            <TouchableOpacity
+              style={[
+                styles.releaseButton,
+                releasing && styles.releaseButtonDisabled,
+              ]}
+              onPress={() => setShowReleaseModal(true)}
+              activeOpacity={0.85}
+              disabled={releasing}
+            >
+              <Text style={styles.releaseIcon}>🐆</Text>
+              <Text style={styles.releaseText}>
+                {releasing ? "Releasing..." : "Release Leopard"}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* ---- Released Badge (read-only view from Released tab) ---- */}
+        {alertStatus === "released" && (
+          <Animated.View style={{ opacity: fadeAnim, marginBottom: 16 }}>
+            <View style={styles.releasedBanner}>
+              <Text style={styles.releasedBannerIcon}>✅</Text>
+              <Text style={styles.releasedBannerText}>
+                This leopard has been released
+              </Text>
+            </View>
+          </Animated.View>
+        )}
 
         {/* Details Card */}
         <Animated.View style={[styles.detailsCard, { opacity: fadeAnim }]}>
@@ -789,7 +810,14 @@ export default function ResultScreen() {
               <Text style={styles.detailIcon}>📊</Text>
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Status</Text>
-                <Text style={styles.detailValue}>Completed</Text>
+                <Text
+                  style={[
+                    styles.detailValue,
+                    { color: alertStatus === "released" ? "#2ECC71" : "#212121" },
+                  ]}
+                >
+                  {alertStatus === "released" ? "Released" : "Active"}
+                </Text>
               </View>
             </View>
           </View>
@@ -1163,6 +1191,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#4A4A4A",
     lineHeight: 21,
+  },
+
+  // Released Banner (read-only state)
+  releasedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F5E9",
+    borderWidth: 2,
+    borderColor: "#2ECC71",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 0,
+  },
+  releasedBannerIcon: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  releasedBannerText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1B5E20",
+    letterSpacing: -0.2,
   },
 
   // Release Button

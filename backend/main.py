@@ -224,6 +224,23 @@ async def get_alerts(session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
+@app.get("/alert/{alert_id}", response_model=AlertResponse)
+async def get_alert(alert_id: str, session: AsyncSession = Depends(get_session)):
+    """Get a single alert by ID"""
+    try:
+        result = await session.execute(
+            select(Alert).where(Alert.alert_id == alert_id)
+        )
+        alert = result.scalar_one_or_none()
+        if not alert:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        return alert
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
 @app.get("/alerts/released", response_model=List[AlertResponse])
 async def get_released_alerts(session: AsyncSession = Depends(get_session)):
     """Get all RELEASED alerts (status = 'released')"""

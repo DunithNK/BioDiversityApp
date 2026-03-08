@@ -1,7 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import MapView, { Marker } from "react-native-maps";
 
 type AlertItem = {
@@ -22,7 +31,7 @@ type AlertWithAssessment = AlertItem & {
   severity?: "None" | "Low" | "Moderate" | "High" | "Critical";
 };
 
-const BACKEND_URL = "http://172.20.10.2:8000";
+const BACKEND_URL = "http://192.168.1.3:8000";
 const STORAGE_KEY = "CACHED_ALERTS";
 
 /* ------------------ GAL OYA SAFE BOUNDARY ------------------ */
@@ -44,6 +53,7 @@ export default function AlertMapScreen() {
   const [alerts, setAlerts] = useState<AlertWithAssessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOutside, setShowOutside] = useState(false);
+  const [legendVisible, setLegendVisible] = useState(false);
 
   useEffect(() => {
     loadAlerts();
@@ -56,20 +66,20 @@ export default function AlertMapScreen() {
       const data = await res.json();
       if (!Array.isArray(data)) throw new Error();
 
-      // Store raw alerts
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 
-      // Fetch assessment data for ALL alerts (we'll filter by toggle later)
       const alertsWithAssessments = await Promise.all(
         data.map(async (alert) => {
           try {
-            const assessmentRes = await fetch(`${BACKEND_URL}/assessment/${alert.alert_id}`);
+            const assessmentRes = await fetch(
+              `${BACKEND_URL}/assessment/${alert.alert_id}`
+            );
             if (assessmentRes.ok) {
               const assessment: AssessmentData = await assessmentRes.json();
               return { ...alert, severity: assessment.severity };
             }
           } catch {
-            // If assessment not found, return alert without severity
+            // no assessment yet
           }
           return { ...alert, severity: undefined };
         })
@@ -79,8 +89,7 @@ export default function AlertMapScreen() {
     } catch {
       const cached = await AsyncStorage.getItem(STORAGE_KEY);
       if (cached) {
-        const parsed = JSON.parse(cached);
-        setAlerts(parsed);
+        setAlerts(JSON.parse(cached));
       } else {
         Alert.alert("Offline", "No cached map data available");
       }
@@ -89,79 +98,57 @@ export default function AlertMapScreen() {
     }
   };
 
-  /* ------------------ FILTER ALERTS BY TOGGLE ------------------ */
-  const filteredAlerts = showOutside 
-    ? alerts // Show all alerts
-    : alerts.filter(a => a.is_outside !== true); // Show only Gal Oya alerts (inside or undefined)
-  
-  const insideCount = alerts.filter(a => a.is_outside !== true).length;
-  const outsideCount = alerts.filter(a => a.is_outside === true).length;
+  /* ------------------ FILTER ------------------ */
+  const filteredAlerts = showOutside
+    ? alerts
+    : alerts.filter((a) => a.is_outside !== true);
 
-  /* ------------------ DYNAMIC MAP REGION ------------------ */
+  const insideCount = alerts.filter((a) => a.is_outside !== true).length;
+  const outsideCount = alerts.filter((a) => a.is_outside === true).length;
+
+  /* ------------------ DYNAMIC REGION ------------------ */
   const getMapRegion = () => {
-    if (!showOutside || filteredAlerts.length === 0) {
-      return GAL_OYA_REGION; // Default Gal Oya view
-    }
+    if (!showOutside || filteredAlerts.length === 0) return GAL_OYA_REGION;
 
-    // Calculate bounds for all visible alerts
-    const lats = filteredAlerts.map(a => a.latitude);
-    const lons = filteredAlerts.map(a => a.longitude);
-    
+    const lats = filteredAlerts.map((a) => a.latitude);
+    const lons = filteredAlerts.map((a) => a.longitude);
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
     const minLon = Math.min(...lons);
     const maxLon = Math.max(...lons);
-    
-    const centerLat = (minLat + maxLat) / 2;
-    const centerLon = (minLon + maxLon) / 2;
-    const latDelta = (maxLat - minLat) * 1.5; // Add 50% padding
-    const lonDelta = (maxLon - minLon) * 1.5;
-    
+
     return {
-      latitude: centerLat,
-      longitude: centerLon,
-      latitudeDelta: Math.max(latDelta, 0.5), // Minimum zoom
-      longitudeDelta: Math.max(lonDelta, 0.5),
+      latitude: (minLat + maxLat) / 2,
+      longitude: (minLon + maxLon) / 2,
+      latitudeDelta: Math.max((maxLat - minLat) * 1.5, 0.5),
+      longitudeDelta: Math.max((maxLon - minLon) * 1.5, 0.5),
     };
   };
 
-  /* ------------------ SEVERITY COLOR MAPPING ------------------ */
+  /* ------------------ SEVERITY HELPERS ------------------ */
   const getSeverityColor = (severity?: string) => {
     switch (severity) {
-      case "Critical":
-        return "#EF4444"; // Red
-      case "High":
-        return "#F97316"; // Orange
-      case "Moderate":
-        return "#F59E0B"; // Yellow
-      case "Low":
-        return "#2ECC71"; // Green
-      case "None":
-        return "#2ECC71"; // Green
-      default:
-        return "#94A3B8"; // Gray for no assessment
+      case "Critical": return "#EF4444";
+      case "High":     return "#F97316";
+      case "Moderate": return "#F59E0B";
+      case "Low":      return "#2ECC71";
+      case "None":     return "#2ECC71";
+      default:         return "#94A3B8";
     }
   };
 
   const getSeverityIcon = (severity?: string) => {
     switch (severity) {
-      case "Critical":
-        return "🔴";
-      case "High":
-        return "🟠";
-      case "Moderate":
-        return "🟡";
-      case "Low":
-        return "🟢";
-      case "None":
-        return "✅";
-      default:
-        return "📍";
+      case "Critical": return "🔴";
+      case "High":     return "🟠";
+      case "Moderate": return "🟡";
+      case "Low":      return "🟢";
+      case "None":     return "✅";
+      default:         return "📍";
     }
   };
 
-  /* ------------------ CONDITIONAL DISPLAY ------------------ */
-  // Show loading state
+  /* ------------------ LOADING ------------------ */
   if (loading) {
     return (
       <View style={styles.container}>
@@ -173,7 +160,7 @@ export default function AlertMapScreen() {
     );
   }
 
-  // Condition 1: Only show map if leopard detections exist
+  /* ------------------ EMPTY STATE ------------------ */
   if (filteredAlerts.length === 0 && !showOutside) {
     return (
       <View style={styles.container}>
@@ -186,9 +173,9 @@ export default function AlertMapScreen() {
           <Text style={styles.emptyInfo}>
             Upload a leopard image to activate this area.
           </Text>
-          <TouchableOpacity 
-            style={styles.emptyBackBtn} 
-            onPress={() => router.back()}
+          <TouchableOpacity
+            style={styles.emptyBackBtn}
+            onPress={() => router.push("/(tabs)/leoTrack" as any)}
           >
             <Text style={styles.emptyBackText}>← Return to Tracker</Text>
           </TouchableOpacity>
@@ -197,9 +184,11 @@ export default function AlertMapScreen() {
     );
   }
 
-  // Show map with color-coded hotspots
+  /* ------------------ MAP VIEW ------------------ */
   return (
     <View style={styles.container}>
+
+      {/* ── Map ── */}
       <MapView
         style={styles.map}
         region={getMapRegion()}
@@ -218,33 +207,34 @@ export default function AlertMapScreen() {
           const isOutside = alert.is_outside === true;
           const severityColor = getSeverityColor(alert.severity);
           const severityIcon = getSeverityIcon(alert.severity);
-          
-          // Color scheme for markers - ONLY Gal Oya shows severity colors
-          const borderColor = isOutside ? "#F97316" : "#2ECC71"; // Orange border for outside, Green for inside
-          const markerBgColor = isOutside ? "#FFA500" : severityColor; // Plain orange for outside, severity color for inside
-          const displayIcon = isOutside ? "📍" : severityIcon; // Location pin for outside, severity icon for inside
-          
-          // Debug: Log outside markers
+          const borderColor   = isOutside ? "#F97316" : "#2ECC71";
+          const markerBgColor = isOutside ? "#FFA500" : severityColor;
+          const displayIcon   = isOutside ? "📍" : severityIcon;
+
           if (isOutside) {
-            console.log(`Outside marker: ${alert.alert_id} at ${alert.latitude}, ${alert.longitude}`);
+            console.log(
+              `Outside marker: ${alert.alert_id} at ${alert.latitude}, ${alert.longitude}`
+            );
           }
-          
+
           return (
             <Marker
               key={alert.alert_id}
-              coordinate={{
-                latitude: alert.latitude,
-                longitude: alert.longitude,
-              }}
+              coordinate={{ latitude: alert.latitude, longitude: alert.longitude }}
               onPress={() =>
                 router.push(`/leoTrack/result?alertId=${alert.alert_id}` as any)
               }
             >
-              <View style={[styles.marker, { 
-                backgroundColor: markerBgColor, 
-                borderColor: borderColor, 
-                borderWidth: isOutside ? 4 : 3 // Thicker border for outside markers to make them more visible
-              }]}>
+              <View
+                style={[
+                  styles.marker,
+                  {
+                    backgroundColor: markerBgColor,
+                    borderColor: borderColor,
+                    borderWidth: isOutside ? 4 : 3,
+                  },
+                ]}
+              >
                 <Text style={styles.markerIcon}>{displayIcon}</Text>
                 <Text style={styles.markerEmoji}>🐆</Text>
                 {isOutside && (
@@ -258,78 +248,137 @@ export default function AlertMapScreen() {
         })}
       </MapView>
 
-      {/* Header Overlay */}
+      {/* ── Header Overlay ── */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🗺️ {showOutside ? 'Sri Lanka' : 'Gal Oya'} Leopard Map</Text>
+        <Text style={styles.headerTitle}>
+          🗺️ {showOutside ? "Sri Lanka" : "Gal Oya"} Leopard Map
+        </Text>
         <Text style={styles.headerSubtitle}>
-          {showOutside 
-            ? `${filteredAlerts.length} Total (${insideCount} Inside 🟢, ${outsideCount} Outside 🟠)` 
-            : `${insideCount} Gal Oya Detection${insideCount !== 1 ? "s" : ""}`
-          }
+          {showOutside
+            ? `${filteredAlerts.length} Total (${insideCount} Inside 🟢, ${outsideCount} Outside 🟠)`
+            : `${insideCount} Gal Oya Detection${insideCount !== 1 ? "s" : ""}`}
         </Text>
         {showOutside && (
           <Text style={styles.headerNote}>📍 Scroll & zoom to explore</Text>
         )}
       </View>
 
-      {/* Toggle Filter */}
+      {/* ── Toggle Filter (bottom-left of header) ── */}
       <View style={styles.toggleContainer}>
         <Text style={styles.toggleLabel}>Show Outside Detections</Text>
         <Switch
           value={showOutside}
           onValueChange={setShowOutside}
           trackColor={{ false: "#CBD5E1", true: "#F97316" }}
-          thumbColor={showOutside ? "#FFF" : "#FFF"}
+          thumbColor="#FFF"
         />
       </View>
 
-      {/* Legend */}
-      <View style={styles.legend}>
-        <Text style={styles.legendTitle}>Legend</Text>
-        <Text style={styles.legendSubtitle}>Severity (Inside Gal Oya):</Text>
-        <View style={styles.legendRow}>
-          <View style={styles.legendItem}>
-            <Text style={styles.legendIcon}>🔴</Text>
-            <Text style={styles.legendText}>Critical</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <Text style={styles.legendIcon}>🟠</Text>
-            <Text style={styles.legendText}>High</Text>
-          </View>
-        </View>
-        <View style={styles.legendRow}>
-          <View style={styles.legendItem}>
-            <Text style={styles.legendIcon}>🟡</Text>
-            <Text style={styles.legendText}>Moderate</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <Text style={styles.legendIcon}>🟢</Text>
-            <Text style={styles.legendText}>Low/None</Text>
-          </View>
-        </View>
-        <View style={styles.legendDivider} />
-        <Text style={styles.legendSubtitle}>Location Markers:</Text>
-        <View style={styles.legendRow}>
-          <View style={styles.legendItem}>
-            <View style={[styles.locationMarker, { backgroundColor: "#EF4444", borderColor: "#2ECC71" }]}>
-              <Text style={styles.locationMarkerEmoji}>🐆</Text>
-            </View>
-            <Text style={styles.legendText}>Gal Oya</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.locationMarker, { backgroundColor: "#FFA500", borderColor: "#F97316" }]}>
-              <Text style={styles.locationMarkerEmoji}>🐆</Text>
-            </View>
-            <Text style={styles.legendText}>Outside</Text>
-          </View>
-        </View>
-        <Text style={styles.legendNote}>* Gal Oya markers show health severity colors</Text>
-      </View>
+      {/* ── Legend Button (top-right, same row as toggle) ── */}
+      <TouchableOpacity
+        style={styles.legendBtn}
+        onPress={() => setLegendVisible(true)}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.legendBtnIcon}>📋</Text>
+        <Text style={styles.legendBtnText}>Legend</Text>
+      </TouchableOpacity>
 
-      {/* Back Button */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+      {/* ── Legend Modal ── */}
+      <Modal
+        visible={legendVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLegendVisible(false)}
+      >
+        {/* Tapping the backdrop closes the modal */}
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setLegendVisible(false)}
+        >
+          {/* Inner card — tap does NOT close */}
+          <TouchableOpacity activeOpacity={1} style={styles.legendCard} onPress={() => {}}>
+
+            {/* Title row */}
+            <View style={styles.legendCardHeader}>
+              <Text style={styles.legendTitle}>Legend</Text>
+              <TouchableOpacity
+                onPress={() => setLegendVisible(false)}
+                style={styles.legendCloseBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.legendCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Severity */}
+            <Text style={styles.legendSubtitle}>Severity (Inside Gal Oya):</Text>
+            <View style={styles.legendRow}>
+              <View style={styles.legendItem}>
+                <Text style={styles.legendIcon}>🔴</Text>
+                <Text style={styles.legendText}>Critical</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <Text style={styles.legendIcon}>🟠</Text>
+                <Text style={styles.legendText}>High</Text>
+              </View>
+            </View>
+            <View style={styles.legendRow}>
+              <View style={styles.legendItem}>
+                <Text style={styles.legendIcon}>🟡</Text>
+                <Text style={styles.legendText}>Moderate</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <Text style={styles.legendIcon}>🟢</Text>
+                <Text style={styles.legendText}>Low / None</Text>
+              </View>
+            </View>
+
+            <View style={styles.legendDivider} />
+
+            {/* Location markers */}
+            <Text style={styles.legendSubtitle}>Location Markers:</Text>
+            <View style={styles.legendRow}>
+              <View style={styles.legendItem}>
+                <View style={[styles.locationMarker, { backgroundColor: "#EF4444", borderColor: "#2ECC71" }]}>
+                  <Text style={styles.locationMarkerEmoji}>🐆</Text>
+                </View>
+                <Text style={styles.legendText}>Gal Oya</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.locationMarker, { backgroundColor: "#FFA500", borderColor: "#F97316" }]}>
+                  <Text style={styles.locationMarkerEmoji}>🐆</Text>
+                </View>
+                <Text style={styles.legendText}>Outside</Text>
+              </View>
+            </View>
+
+            <Text style={styles.legendNote}>
+              * Gal Oya markers show health severity colors
+            </Text>
+
+            {/* Done button */}
+            <TouchableOpacity
+              style={styles.legendDoneBtn}
+              onPress={() => setLegendVisible(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.legendDoneBtnText}>Close</Text>
+            </TouchableOpacity>
+
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Back Button ── */}
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={() => router.push("/(tabs)/leoTrack" as any)}
+      >
         <Text style={styles.backText}>← Back to Tracker</Text>
       </TouchableOpacity>
+
     </View>
   );
 }
@@ -344,6 +393,8 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+
+  // ── Markers ──
   marker: {
     padding: 12,
     borderRadius: 28,
@@ -387,6 +438,8 @@ const styles = StyleSheet.create({
   outsideBadgeText: {
     fontSize: 14,
   },
+
+  // ── Header ──
   header: {
     position: "absolute",
     top: 50,
@@ -415,88 +468,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: "italic",
   },
-  legend: {
-    position: "absolute",
-    top: 240,
-    right: 20,
-    backgroundColor: "rgba(26, 61, 46, 0.95)",
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#2ECC71",
-  },
-  legendTitle: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  legendSubtitle: {
-    color: "#8BC4A9",
-    fontWeight: "600",
-    fontSize: 10,
-    marginBottom: 4,
-    marginTop: 4,
-  },
-  legendRow: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  legendIcon: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  legendText: {
-    color: "#8BC4A9",
-    fontSize: 10,
-  },
-  legendNote: {
-    color: "#8BC4A9",
-    fontSize: 9,
-    fontStyle: "italic",
-    marginTop: 6,
-  },
-  legendDivider: {
-    height: 1,
-    backgroundColor: "#2ECC71",
-    marginVertical: 8,
-    opacity: 0.3,
-  },
-  locationBadge: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 4,
-  },
-  locationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  locationMarker: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    marginRight: 6,
-  },
-  locationMarkerEmoji: {
-    fontSize: 18,
-  },
+
+  // ── Toggle ──
   toggleContainer: {
     position: "absolute",
-    top: 140,
+    top: 152,
     left: 20,
     backgroundColor: "rgba(26, 61, 46, 0.95)",
     padding: 12,
@@ -512,6 +488,141 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginRight: 10,
   },
+
+  // ── Legend trigger button ──
+  legendBtn: {
+    position: "absolute",
+    top: 152,
+    right: 20,
+    backgroundColor: "rgba(26, 61, 46, 0.95)",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2ECC71",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  legendBtnIcon: {
+    fontSize: 15,
+  },
+  legendBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  // ── Modal backdrop ──
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+
+  // ── Legend card ──
+  legendCard: {
+    backgroundColor: "rgba(15, 40, 28, 0.98)",
+    borderRadius: 20,
+    padding: 22,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#2ECC71",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  legendCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  legendTitle: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 18,
+  },
+  legendCloseBtn: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 16,
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  legendCloseBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  legendSubtitle: {
+    color: "#8BC4A9",
+    fontWeight: "600",
+    fontSize: 12,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  legendRow: {
+    flexDirection: "row",
+    marginBottom: 8,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  legendIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  legendText: {
+    color: "#D1FAE5",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  legendDivider: {
+    height: 1,
+    backgroundColor: "#2ECC71",
+    marginVertical: 14,
+    opacity: 0.3,
+  },
+  locationMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    marginRight: 10,
+  },
+  locationMarkerEmoji: {
+    fontSize: 18,
+  },
+  legendNote: {
+    color: "#8BC4A9",
+    fontSize: 10,
+    fontStyle: "italic",
+    marginTop: 8,
+    marginBottom: 18,
+  },
+  legendDoneBtn: {
+    backgroundColor: "#2ECC71",
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  legendDoneBtnText: {
+    color: "#0A1F17",
+    fontWeight: "800",
+    fontSize: 15,
+  },
+
+  // ── Back button ──
   backBtn: {
     position: "absolute",
     bottom: 30,
@@ -529,7 +640,8 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontSize: 15,
   },
-  // Loading state
+
+  // ── Loading ──
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -542,7 +654,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontWeight: "600",
   },
-  // Empty state (no detections)
+
+  // ── Empty state ──
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
@@ -587,5 +700,22 @@ const styles = StyleSheet.create({
     color: "#2ECC71",
     fontWeight: "800",
     fontSize: 16,
+  },
+
+  // Legacy (kept for safety)
+  locationBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
+  },
+  locationDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
 });

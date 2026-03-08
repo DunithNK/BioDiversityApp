@@ -25,7 +25,7 @@ type AlertItem = {
 
 type AssessmentMap = Record<string, { severity: string; score: number }>;
 
-const BACKEND_URL = "http://172.20.10.2:8000";
+const BACKEND_URL = "http://192.168.1.3:8000";
 
 type TabType = "active" | "released";
 
