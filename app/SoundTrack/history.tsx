@@ -48,7 +48,10 @@ export default function DetectionHistoryScreen() {
         const longitude = item.location?.longitude ?? undefined;
 
         return {
-          id: String(item.id),
+          id:
+            (item.source === "live" ? "live" : "recorded") +
+            "-" +
+            String(item.id),
           mode: item.source === "live" ? "live" : "recorded",
           date: item.created_at
             ? new Date(item.created_at).toLocaleString()
