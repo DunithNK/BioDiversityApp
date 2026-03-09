@@ -93,27 +93,40 @@ export default function ThermalCapture() {
       const rawText = await response.text();
       console.log("📦 Raw backend response:", rawText);
 
-      // Safely parse JSON
-      let data;
-      try {
-        data = JSON.parse(rawText);
-      } catch (parseError) {
-        console.log("❌ JSON Parse Error:", parseError);
-        throw new Error("Invalid JSON from backend");
+      // Safely parse JSON — handle empty bodies (e.g. 403 from CORS)
+      let data: any = {};
+      if (rawText && rawText.trim().length > 0) {
+        try {
+          data = JSON.parse(rawText);
+        } catch (parseError) {
+          console.log("❌ JSON Parse Error:", parseError);
+          throw new Error(`Server returned non-JSON (status ${response.status}): ${rawText.slice(0, 100)}`);
+        }
+      } else {
+        // Empty body — likely a CORS or network-level block
+        throw new Error(`Server returned empty body (status ${response.status}). Check backend is running and CORS is configured.`);
       }
 
       if (!response.ok) {
         // Handle specific error cases
         if (data.error === 'No leopard detected in image') {
-          // detected_animals is already a formatted string from backend
-          const animals = data.detected_animals || 'other animals';
           Alert.alert(
             "❌ No Leopard Detected",
-            `This image contains ${animals}.\n\nPlease upload a thermal image containing a leopard for health analysis.`,
+            `This does not appear to be a leopard image.\n\nPlease upload a THERMAL image of a leopard for health analysis.`,
             [{ text: "OK" }]
           );
           throw new Error(data.error);
         }
+
+        if (data.error === 'Not a thermal image') {
+          Alert.alert(
+            "📷 Regular Photo Detected",
+            "This looks like a regular photo of a leopard, not a thermal (infrared) image.\n\nPlease upload a THERMAL image captured with a thermal camera (e.g. FLIR ONE) for health analysis.",
+            [{ text: "OK" }]
+          );
+          throw new Error(data.error);
+        }
+
         throw new Error(`Backend error: ${rawText}`);
       }
 
@@ -122,15 +135,20 @@ export default function ThermalCapture() {
     } catch (error: any) {
       console.error("❌ FULL FETCH ERROR:", error);
 
-      // If it's a leopard detection error, the alert was already shown
-      if (error.message && error.message.includes('No leopard detected')) {
-        throw error; // Don't show connection error, just propagate
+      // If it's a known validation error, alert was already shown — don't show connection error
+      if (
+        error.message &&
+        (error.message.includes('No leopard detected') ||
+         error.message.includes('Not a thermal image'))
+      ) {
+        throw error;
       }
 
-      // Show connection error only for network issues
+      // Show descriptive connection error for network / server issues
+      const detail = error.message || "Unknown error";
       Alert.alert(
         "Connection Error",
-        "Could not connect to thermal analysis backend.\n\nCheck:\n1. Backend running (python3 app.py)\n2. API URL correct\n3. For device: use Mac IP instead of localhost"
+        `Could not connect to thermal analysis backend.\n\nDetails: ${detail}\n\nCheck:\n1. Backend running (python app.py)\n2. Phone & Mac on same WiFi\n3. API URL uses Mac IP (not localhost)`
       );
 
       throw error;

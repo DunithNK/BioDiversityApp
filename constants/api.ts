@@ -1,14 +1,16 @@
 // API Configuration for Backend
 // Update BACKEND_URL based on your setup:
 //
-// iOS Simulator: http://localhost:5001
-// Android Emulator: http://10.0.2.2:5001
-// Physical Device: http://<YOUR_MAC_IP>:5001
-//   Find Mac IP: ipconfig getifaddr en0
+// iOS Simulator:      http://localhost:5001
+// Android Emulator:   http://10.0.2.2:5001
+// Physical Device:    http://<YOUR_MAC_IP>:5001
+//   Find Mac IP:  ipconfig getifaddr en0  (Mac)  or  ipconfig (Windows)
+//
+// NOTE: Port 5000 is used by macOS AirPlay Receiver - Flask runs on 5001
 
 export const API_CONFIG = {
   // Change this based on your testing environment
-  BACKEND_URL: "http://192.168.1.15:5001", // For physical device (UPDATED: IP changed)
+  BACKEND_URL: "http://192.168.1.145:5001", // iPhone Physical Device
 
   // Endpoints
   ENDPOINTS: {
@@ -19,8 +21,9 @@ export const API_CONFIG = {
     MODEL_INFO: "/api/model/info",
   },
 
-  // For physical device, uncomment and update IP:
-  // BACKEND_URL: "http://192.168.1.XXX:5001",
+  // Other environments:
+  // Android Emulator:  "http://10.0.2.2:5001"
+  // iOS Simulator:     "http://localhost:5001"
 };
 
 // Helper to get API URL

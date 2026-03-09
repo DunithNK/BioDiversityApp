@@ -99,7 +99,7 @@ FLASK_DEBUG=True
 
 # Server configuration
 HOST=0.0.0.0
-PORT=5001
+PORT=5000
 
 # Paths
 MODEL_PATH=models/thermal_wildlife_detection/weights/best.pt
@@ -130,7 +130,7 @@ Loading detection model...
 Loaded model from models\thermal_wildlife_detection\weights\best.pt
 
 Starting Flask server...
-API will be available at: http://localhost:5001
+API will be available at: http://localhost:5000
 
 Available endpoints:
   GET  /health - Health check
@@ -141,8 +141,8 @@ Available endpoints:
   GET  /api/model/info - Get model information
 ============================================================
  * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:5001
- * Running on http://192.168.1.XXX:5001
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.XXX:5000
 ```
 
 🎉 **Backend is now running!** Keep this terminal open.
@@ -186,7 +186,7 @@ Update the `BACKEND_URL`:
 ```typescript
 export const API_CONFIG = {
   // For Windows development
-  BACKEND_URL: "http://192.168.1.100:5001", // Replace with YOUR IP
+  BACKEND_URL: "http://192.168.1.145:5000", // Replace with YOUR IP
   
   // Endpoints
   ENDPOINTS: {
@@ -248,7 +248,7 @@ Starting Metro Bundler
 
 **For emulator:** Update `constants/api.ts`:
 ```typescript
-BACKEND_URL: "http://10.0.2.2:5001", // Special Android emulator address
+BACKEND_URL: "http://10.0.2.2:5000", // Special Android emulator address
 ```
 
 ---
@@ -259,7 +259,7 @@ BACKEND_URL: "http://10.0.2.2:5001", // Special Android emulator address
 
 Open browser or use curl:
 ```cmd
-curl http://localhost:5001/health
+curl http://localhost:5000/health
 ```
 
 Expected response:
@@ -273,7 +273,7 @@ Expected response:
 
 ### Model Information Check
 ```cmd
-curl http://localhost:5001/api/model/info
+curl http://localhost:5000/api/model/info
 ```
 
 Expected response:
@@ -297,7 +297,7 @@ Expected response:
 
 If you have a thermal image:
 ```cmd
-curl -X POST http://localhost:5001/api/analyze?bypass=true ^
+curl -X POST http://localhost:5000/api/analyze?bypass=true ^
   -F "image=@C:\path\to\thermal_image.jpg"
 ```
 
@@ -313,9 +313,9 @@ curl -X POST http://localhost:5001/api/analyze?bypass=true ^
 - Python not in PATH. Reinstall Python and check "Add to PATH"
 - Or use full path: `C:\Python310\python.exe`
 
-#### "Port 5001 is in use"
+#### "Port 5000 is in use"
 ```cmd
-netstat -ano | findstr :5001
+netstat -ano | findstr :5000
 taskkill /PID <PID> /F
 ```
 
@@ -339,10 +339,10 @@ npx expo start --clear
 ```
 
 #### "Unable to connect to backend"
-1. Check backend is running (`http://localhost:5001/health`)
+1. Check backend is running (`http://localhost:5000/health`)
 2. Verify IP address in `constants/api.ts` matches your PC's IP
 3. Ensure phone and PC are on SAME WiFi network
-4. Check Windows Firewall isn't blocking port 5001:
+4. Check Windows Firewall isn't blocking port 5000:
    - Control Panel → Windows Defender Firewall → Allow an app
    - Allow Python through firewall
 
@@ -362,7 +362,7 @@ npx expo start --clear
    Look for IPv4 Address (e.g., 192.168.1.100)
 
 2. **Test from phone's browser:**
-   Navigate to: `http://YOUR_PC_IP:5001/health`
+   Navigate to: `http://YOUR_PC_IP:5000/health`
    
 3. **Update API config:**
    Edit `constants/api.ts` with correct IP
@@ -489,7 +489,7 @@ venv\Scripts\activate
 python app.py
 
 # Check health
-curl http://localhost:5001/health
+curl http://localhost:5000/health
 
 # View logs (keep terminal open to see logs)
 ```
@@ -512,7 +512,7 @@ npx expo start --clear
 ipconfig
 
 # Check if port is in use
-netstat -ano | findstr :5001
+netstat -ano | findstr :5000
 
 # Kill process on port
 taskkill /PID <PID> /F
@@ -524,8 +524,8 @@ taskkill /PID <PID> /F
 
 After successful setup:
 
-1. ✅ Test backend health: `http://localhost:5001/health`
-2. ✅ Test model info: `http://localhost:5001/api/model/info`
+1. ✅ Test backend health: `http://localhost:5000/health`
+2. ✅ Test model info: `http://localhost:5000/api/model/info`
 3. ✅ Upload a thermal image through the app
 4. ✅ View TSI analysis results
 
