@@ -6,21 +6,21 @@ export default function SoundTrackLayout() {
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: "#0F2F23",
+          backgroundColor: "#FFFFFF",
         },
-        headerTintColor: "#2ECC71",
+        headerTintColor: "#16A34A",
         headerTitleStyle: {
           fontWeight: "700",
           fontSize: 18,
-          color: "#FFFFFF",
+          color: "#111827",
         },
         headerBackTitle: "Back",
         headerBackTitleStyle: {
           fontSize: 16,
         },
-        headerShadowVisible: false,
+        headerShadowVisible: true,
         contentStyle: {
-          backgroundColor: "#0A1F17",
+          backgroundColor: "#F9FAFB",
         },
         animation: "slide_from_right",
       }}
@@ -32,6 +32,10 @@ export default function SoundTrackLayout() {
           title: "Eco-Acoustic Monitor",
           headerLargeTitle: Platform.OS === "ios",
           headerTransparent: false,
+          headerLargeTitleStyle: {
+            color: "#111827",
+            fontWeight: "700",
+          },
         }}
       />
 
@@ -49,8 +53,8 @@ export default function SoundTrackLayout() {
         name="processing"
         options={{
           title: "Processing Audio",
-          headerBackVisible: false, // Prevent going back during processing
-          gestureEnabled: false, // Disable swipe back gesture
+          headerBackVisible: false,
+          gestureEnabled: false,
         }}
       />
 
@@ -59,7 +63,7 @@ export default function SoundTrackLayout() {
         name="analysis-result"
         options={{
           title: "Detection Results",
-          headerBackVisible: false, // User should navigate via buttons
+          headerBackVisible: false,
           gestureEnabled: false,
         }}
       />

@@ -17,14 +17,12 @@ type DetectionItem = {
   latitude?: number;
   longitude?: number;
   frequency: string;
-
   distance?: {
     estimated_m?: number | null;
     min_m?: number | null;
     max_m?: number | null;
     confidence?: number | null;
   } | null;
-
   confidence: number;
   isLeopard: boolean;
 };
@@ -70,6 +68,7 @@ export default function DetectionHistoryScreen() {
       setHistory([]);
     }
   };
+
   useEffect(() => {
     loadHistory();
   }, []);
@@ -101,9 +100,9 @@ export default function DetectionHistoryScreen() {
   });
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 80) return "#2ECC71";
-    if (confidence >= 60) return "#F39C12";
-    return "#E74C3C";
+    if (confidence >= 80) return "#16A34A";
+    if (confidence >= 60) return "#D97706";
+    return "#DC2626";
   };
 
   const getConfidenceLabel = (confidence: number) => {
@@ -184,8 +183,8 @@ export default function DetectionHistoryScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#2ECC71"
-            colors={["#2ECC71"]}
+            tintColor="#16A34A"
+            colors={["#16A34A"]}
           />
         }
       >
@@ -237,7 +236,14 @@ export default function DetectionHistoryScreen() {
                   <Text style={styles.modeIcon}>
                     {item.mode === "live" ? "🎙️" : "📁"}
                   </Text>
-                  <Text style={styles.modeText}>
+                  <Text
+                    style={[
+                      styles.modeText,
+                      item.mode === "live"
+                        ? styles.liveModeText
+                        : styles.recordedModeText,
+                    ]}
+                  >
                     {item.mode === "live" ? "Live" : "Recorded"}
                   </Text>
                 </View>
@@ -246,7 +252,7 @@ export default function DetectionHistoryScreen() {
                 style={[
                   styles.confidenceBadge,
                   {
-                    backgroundColor: `${getConfidenceColor(item.confidence)}20`,
+                    backgroundColor: `${getConfidenceColor(item.confidence)}18`,
                   },
                 ]}
               >
@@ -354,13 +360,15 @@ export default function DetectionHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#F9FAFB",
   },
   header: {
     paddingTop: 40,
     paddingHorizontal: 24,
     paddingBottom: 20,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
   headerTop: {
     alignItems: "center",
@@ -370,11 +378,11 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
   },
   headerIcon: {
     fontSize: 28,
@@ -382,43 +390,46 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: "bold",
-    color: "#FFFFFF",
+    color: "#111827",
     textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: "#8BC4A9",
+    color: "#6B7280",
     textAlign: "center",
   },
   filterContainer: {
     flexDirection: "row",
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingVertical: 14,
     gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
   filterTab: {
     flex: 1,
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#F3F4F6",
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E5E7EB",
     alignItems: "center",
   },
   activeFilter: {
-    backgroundColor: "#2ECC71",
-    borderColor: "#2ECC71",
+    backgroundColor: "#16A34A",
+    borderColor: "#16A34A",
   },
   filterText: {
-    color: "#8BC4A9",
+    color: "#6B7280",
     fontSize: 12,
     fontWeight: "600",
     textAlign: "center",
   },
   activeFilterText: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
   },
   scrollView: {
     flex: 1,
@@ -434,12 +445,17 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
     borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   emptyIcon: {
     fontSize: 36,
@@ -447,37 +463,42 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#FFFFFF",
+    color: "#111827",
     marginBottom: 10,
     textAlign: "center",
   },
   emptyText: {
     fontSize: 15,
-    color: "#8BC4A9",
+    color: "#6B7280",
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 20,
   },
   emptyButton: {
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
   },
   emptyButtonText: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
     fontWeight: "bold",
   },
   card: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   firstCard: {
-    marginTop: 4,
+    marginTop: 14,
   },
   lastCard: {
     marginBottom: 8,
@@ -499,19 +520,24 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   liveBadge: {
-    backgroundColor: "#2ECC7120",
+    backgroundColor: "#DCFCE7",
   },
   recordedBadge: {
-    backgroundColor: "#3498DB20",
+    backgroundColor: "#DBEAFE",
   },
   modeIcon: {
     marginRight: 6,
     fontSize: 14,
   },
   modeText: {
-    color: "#FFFFFF",
     fontWeight: "600",
     fontSize: 13,
+  },
+  liveModeText: {
+    color: "#16A34A",
+  },
+  recordedModeText: {
+    color: "#2563EB",
   },
   confidenceBadge: {
     paddingHorizontal: 12,
@@ -535,22 +561,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   speciesName: {
-    color: "#FFFFFF",
+    color: "#111827",
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 4,
   },
   dateText: {
-    color: "#8BC4A9",
+    color: "#6B7280",
     fontSize: 13,
   },
   detailsRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 14,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#F9FAFB",
     borderRadius: 14,
     padding: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   detailItem: {
     flex: 1,
@@ -562,43 +590,45 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   detailLabel: {
-    color: "#8BC4A9",
+    color: "#9CA3AF",
     fontSize: 11,
     marginBottom: 2,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   detailValue: {
-    color: "#FFFFFF",
+    color: "#111827",
     fontSize: 14,
     fontWeight: "600",
   },
   detailDivider: {
     width: 1,
     height: 36,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E5E7EB",
     marginHorizontal: 12,
   },
   locationContainer: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 14,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#F9FAFB",
     borderRadius: 12,
     padding: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   locationIcon: {
     fontSize: 16,
     marginRight: 8,
   },
   locationText: {
-    color: "#8BC4A9",
+    color: "#6B7280",
     fontSize: 13,
     fontWeight: "500",
   },
   confidenceBar: {
     height: 8,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E5E7EB",
     borderRadius: 6,
     overflow: "hidden",
     marginBottom: 8,
@@ -620,20 +650,25 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
     paddingTop: 12,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: "#1A3D2E",
+    borderTopColor: "#E5E7EB",
   },
   newDetectionBtn: {
     flex: 1,
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#16A34A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   newDetectionText: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 16,
   },
@@ -642,12 +677,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
     alignItems: "center",
     justifyContent: "center",
   },
   backText: {
-    color: "#2ECC71",
+    color: "#16A34A",
     fontWeight: "bold",
     fontSize: 16,
   },

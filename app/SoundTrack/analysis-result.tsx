@@ -59,7 +59,6 @@ export default function AnalysisResultScreen() {
 
   const parsedRecording: RecordingResult | null = useMemo(() => {
     if (!recording) return null;
-
     try {
       return JSON.parse(recording);
     } catch (error) {
@@ -70,7 +69,6 @@ export default function AnalysisResultScreen() {
 
   const parsedLiveSession: LiveSessionResult | null = useMemo(() => {
     if (!liveSession) return null;
-
     try {
       return JSON.parse(liveSession);
     } catch (error) {
@@ -117,10 +115,7 @@ export default function AnalysisResultScreen() {
   }, [isLive, parsedLiveSession, parsedRecording]);
 
   const scientificName = useMemo(() => {
-    if (!parsedLiveSession?.overall_is_leopard) {
-      return "";
-    }
-
+    if (!parsedLiveSession?.overall_is_leopard) return "";
     if (detectionLabel.toLowerCase().includes("leopard")) {
       return "Panthera pardus kotiya";
     }
@@ -128,18 +123,12 @@ export default function AnalysisResultScreen() {
   }, [detectionLabel, parsedLiveSession]);
 
   const confidence = useMemo(() => {
-    if (isLive) {
-      return parsedLiveSession?.best_confidence ?? null;
-    }
-
-    return (
-      parsedRecording?.best_confidence ?? parsedRecording?.confidence ?? null
-    );
+    if (isLive) return parsedLiveSession?.best_confidence ?? null;
+    return parsedRecording?.best_confidence ?? parsedRecording?.confidence ?? null;
   }, [isLive, parsedLiveSession, parsedRecording]);
 
   const formattedConfidence = useMemo(() => {
     if (confidence == null) return "N/A";
-
     const normalized = confidence <= 1 ? confidence * 100 : confidence;
     return `${Math.round(normalized)}%`;
   }, [confidence]);
@@ -150,18 +139,9 @@ export default function AnalysisResultScreen() {
       const max = parsedLiveSession?.distance?.max_m;
       const exact = parsedLiveSession?.distance?.estimated_m;
 
-      if (!parsedLiveSession?.overall_is_leopard) {
-        return "N/A";
-      }
-
-      if (min != null && max != null) {
-        return `${Math.round(min)} – ${Math.round(max)} m`;
-      }
-
-      if (exact != null) {
-        return `${Math.round(exact)} m`;
-      }
-
+      if (!parsedLiveSession?.overall_is_leopard) return "N/A";
+      if (min != null && max != null) return `${Math.round(min)} – ${Math.round(max)} m`;
+      if (exact != null) return `${Math.round(exact)} m`;
       return "N/A";
     }
 
@@ -169,14 +149,8 @@ export default function AnalysisResultScreen() {
     const max = parsedRecording?.distance_max_m;
     const exact = parsedRecording?.distance_m;
 
-    if (min != null && max != null) {
-      return `${Math.round(min)} – ${Math.round(max)} m`;
-    }
-
-    if (exact != null) {
-      return `${Math.round(exact)} m`;
-    }
-
+    if (min != null && max != null) return `${Math.round(min)} – ${Math.round(max)} m`;
+    if (exact != null) return `${Math.round(exact)} m`;
     return "N/A";
   }, [isLive, parsedLiveSession, parsedRecording]);
 
@@ -184,21 +158,13 @@ export default function AnalysisResultScreen() {
     if (isLive) {
       const lat = parsedLiveSession?.last_location?.latitude;
       const lng = parsedLiveSession?.last_location?.longitude;
-
-      if (lat != null && lng != null) {
-        return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      }
-
+      if (lat != null && lng != null) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
       return "Unavailable";
     }
 
     const lat = parsedRecording?.latitude;
     const lng = parsedRecording?.longitude;
-
-    if (lat != null && lng != null) {
-      return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-    }
-
+    if (lat != null && lng != null) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     return "Unavailable";
   }, [isLive, parsedLiveSession, parsedRecording]);
 
@@ -208,7 +174,6 @@ export default function AnalysisResultScreen() {
       : parsedRecording?.created_at;
 
     if (!rawDate) return "Unavailable";
-
     try {
       return new Date(rawDate).toLocaleString();
     } catch {
@@ -227,6 +192,7 @@ export default function AnalysisResultScreen() {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
+      {/* Header */}
       <Animated.View
         style={[
           styles.header,
@@ -253,14 +219,8 @@ export default function AnalysisResultScreen() {
         </Text>
       </Animated.View>
 
-      <Animated.View
-        style={[
-          styles.speciesCard,
-          {
-            opacity: fadeAnim,
-          },
-        ]}
-      >
+      {/* Species Card */}
+      <Animated.View style={[styles.speciesCard, { opacity: fadeAnim }]}>
         <View style={styles.speciesHeader}>
           <Text style={styles.speciesIcon}>{isDetected ? "🐆" : "🎧"}</Text>
           <View style={styles.speciesInfo}>
@@ -271,14 +231,8 @@ export default function AnalysisResultScreen() {
         </View>
       </Animated.View>
 
-      <Animated.View
-        style={[
-          styles.detailsContainer,
-          {
-            opacity: fadeAnim,
-          },
-        ]}
-      >
+      {/* Details */}
+      <Animated.View style={[styles.detailsContainer, { opacity: fadeAnim }]}>
         <Text style={styles.sectionTitle}>Detection Details</Text>
 
         <View style={styles.detailsGrid}>
@@ -326,14 +280,8 @@ export default function AnalysisResultScreen() {
         </View>
       </Animated.View>
 
-      <Animated.View
-        style={[
-          styles.buttonContainer,
-          {
-            opacity: fadeAnim,
-          },
-        ]}
-      >
+      {/* Buttons */}
+      <Animated.View style={[styles.buttonContainer, { opacity: fadeAnim }]}>
         <TouchableOpacity
           style={styles.primaryBtn}
           onPress={() => router.push("/SoundTrack/history")}
@@ -352,6 +300,7 @@ export default function AnalysisResultScreen() {
         </TouchableOpacity>
       </Animated.View>
 
+      {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           ✅ Detection data loaded from backend
@@ -364,9 +313,10 @@ export default function AnalysisResultScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#F9FAFB",
   },
 
+  // Header
   header: {
     alignItems: "center",
     marginTop: 40,
@@ -376,44 +326,51 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
     borderWidth: 4,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
   },
   neutralBadge: {
-    borderColor: "#8BC4A9",
+    backgroundColor: "#F3F4F6",
+    borderColor: "#9CA3AF",
   },
   successIcon: {
     fontSize: 40,
-    color: "#2ECC71",
+    color: "#16A34A",
     fontWeight: "bold",
   },
   neutralIcon: {
-    color: "#8BC4A9",
+    color: "#9CA3AF",
   },
   title: {
     fontSize: 32,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "bold",
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 15,
-    color: "#8BC4A9",
+    color: "#6B7280",
     textAlign: "center",
   },
 
+  // Species Card
   speciesCard: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
+    shadowColor: "#16A34A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   speciesHeader: {
     flexDirection: "row",
@@ -428,29 +385,30 @@ const styles = StyleSheet.create({
   },
   speciesLabel: {
     fontSize: 13,
-    color: "#8BC4A9",
+    color: "#9CA3AF",
     marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   speciesName: {
     fontSize: 22,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "bold",
     marginBottom: 4,
   },
   scientificName: {
     fontSize: 14,
-    color: "#2ECC71",
+    color: "#16A34A",
     fontStyle: "italic",
   },
 
+  // Details
   detailsContainer: {
     marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 18,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "700",
     marginBottom: 16,
   },
@@ -460,22 +418,32 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   detailCard: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
     width: "48%",
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E5E7EB",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   fullWidthCard: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
     width: "100%",
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E5E7EB",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   detailIcon: {
     fontSize: 28,
@@ -483,72 +451,79 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 12,
-    color: "#8BC4A9",
+    color: "#9CA3AF",
     marginBottom: 6,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   detailValue: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "600",
     textAlign: "center",
   },
   confidenceValue: {
-    color: "#2ECC71",
+    color: "#16A34A",
     fontSize: 20,
     fontWeight: "bold",
   },
 
+  // Buttons
   buttonContainer: {
     gap: 12,
     marginBottom: 16,
   },
   primaryBtn: {
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
     paddingVertical: 18,
     borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#2ECC71",
+    shadowColor: "#16A34A",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
   },
   primaryBtnText: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 18,
     marginRight: 8,
   },
   btnIcon: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "bold",
   },
   secondaryBtn: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 16,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   secondaryBtnText: {
     textAlign: "center",
-    color: "#2ECC71",
+    color: "#16A34A",
     fontWeight: "600",
     fontSize: 16,
   },
 
+  // Footer
   footer: {
     alignItems: "center",
     paddingVertical: 12,
   },
   footerText: {
     fontSize: 13,
-    color: "#6B9F88",
+    color: "#9CA3AF",
   },
 
   scrollContent: {

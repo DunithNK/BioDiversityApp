@@ -20,7 +20,6 @@ export default function ListeningScreen() {
   const [mode, setMode] = useState<"live" | "recorded" | null>(null);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [audioName, setAudioName] = useState<string | null>(null);
-
   const [audioMimeType, setAudioMimeType] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,9 +30,7 @@ export default function ListeningScreen() {
         copyToCacheDirectory: true,
       });
 
-      if (result.canceled) {
-        return;
-      }
+      if (result.canceled) return;
 
       const file = result.assets[0];
       setAudioUri(file.uri);
@@ -154,9 +151,7 @@ export default function ListeningScreen() {
         {/* RECORDED MODE */}
         <TouchableOpacity
           style={[styles.card, mode === "recorded" && styles.activeCard]}
-          onPress={() => {
-            setMode("recorded");
-          }}
+          onPress={() => setMode("recorded")}
           activeOpacity={0.8}
         >
           <View style={styles.cardContent}>
@@ -244,7 +239,7 @@ export default function ListeningScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#F9FAFB",
   },
 
   // Header Styles
@@ -257,26 +252,26 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
     borderWidth: 3,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
   },
   headerIcon: {
     fontSize: 36,
   },
   title: {
     fontSize: 32,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "bold",
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 15,
-    color: "#8BC4A9",
+    color: "#6B7280",
     textAlign: "center",
     lineHeight: 22,
     paddingHorizontal: 20,
@@ -290,21 +285,26 @@ const styles = StyleSheet.create({
 
   // Card Styles
   card: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
-    borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
     position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   activeCard: {
-    borderColor: "#2ECC71",
-    backgroundColor: "#123B2C",
-    shadowColor: "#2ECC71",
+    borderColor: "#16A34A",
+    backgroundColor: "#F0FDF4",
+    shadowColor: "#16A34A",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowRadius: 12,
-    elevation: 8,
+    elevation: 6,
   },
   cardContent: {
     flexDirection: "row",
@@ -314,13 +314,13 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 16,
   },
   activeIconBox: {
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
   },
   cardIcon: {
     fontSize: 28,
@@ -331,13 +331,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 19,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "700",
     marginBottom: 6,
   },
   cardDesc: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#6B7280",
     lineHeight: 20,
   },
   checkmark: {
@@ -347,12 +347,12 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
     alignItems: "center",
     justifyContent: "center",
   },
   checkmarkText: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -362,12 +362,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   uploadBtn: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 18,
     borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
     borderStyle: "dashed",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   uploadContent: {
     flexDirection: "row",
@@ -382,18 +387,18 @@ const styles = StyleSheet.create({
   },
   uploadTitle: {
     fontSize: 17,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "600",
     marginBottom: 4,
   },
   uploadFileName: {
     fontSize: 13,
-    color: "#2ECC71",
+    color: "#16A34A",
     marginTop: 2,
   },
   uploadHint: {
     fontSize: 13,
-    color: "#6B9F88",
+    color: "#9CA3AF",
     marginTop: 2,
   },
 
@@ -404,33 +409,33 @@ const styles = StyleSheet.create({
 
   // Process Button
   processBtn: {
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
     paddingVertical: 18,
     borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#2ECC71",
+    shadowColor: "#16A34A",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
     marginBottom: 16,
     marginTop: 20,
   },
   disabledBtn: {
-    backgroundColor: "#1A3D2E",
-    opacity: 0.5,
+    backgroundColor: "#D1FAE5",
+    opacity: 0.6,
     shadowOpacity: 0,
   },
   processText: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 18,
     marginRight: 8,
   },
   processIcon: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "bold",
   },
@@ -442,7 +447,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: "#6B9F88",
+    color: "#9CA3AF",
   },
 
   scrollContent: {

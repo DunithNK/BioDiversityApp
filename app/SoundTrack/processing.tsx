@@ -31,30 +31,10 @@ import { getRecording, getRecordingStatus } from "@/services/recordings";
 const LIVE_RECORD_SECONDS = 8;
 
 const PROCESSING_STEPS = [
-  {
-    id: 1,
-    text: "Extracting frequency spectrum",
-    duration: 1000,
-    icon: "〰️",
-  },
-  {
-    id: 2,
-    text: "Detecting leopard vocal patterns",
-    duration: 2000,
-    icon: "🐆",
-  },
-  {
-    id: 3,
-    text: "Estimating distance and location",
-    duration: 3000,
-    icon: "📍",
-  },
-  {
-    id: 4,
-    text: "Calculating confidence score",
-    duration: 3500,
-    icon: "📊",
-  },
+  { id: 1, text: "Extracting frequency spectrum", duration: 1000, icon: "〰️" },
+  { id: 2, text: "Detecting leopard vocal patterns", duration: 2000, icon: "🐆" },
+  { id: 3, text: "Estimating distance and location", duration: 3000, icon: "📍" },
+  { id: 4, text: "Calculating confidence score", duration: 3500, icon: "📊" },
 ];
 
 export default function ProcessingScreen() {
@@ -161,30 +141,17 @@ export default function ProcessingScreen() {
     const sleep = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
 
-    const setSafeStep = (value: number) => {
-      if (isMounted) setCurrentStep(value);
-    };
-
-    const setSafeProgress = (value: number) => {
-      if (isMounted) setProgress(value);
-    };
-
-    const setSafeBackendStatus = (value: string) => {
-      if (isMounted) setBackendStatus(value);
-    };
-
-    const setSafeStatusHint = (value: string) => {
-      if (isMounted) setStatusHint(value);
-    };
+    const setSafeStep = (value: number) => { if (isMounted) setCurrentStep(value); };
+    const setSafeProgress = (value: number) => { if (isMounted) setProgress(value); };
+    const setSafeBackendStatus = (value: string) => { if (isMounted) setBackendStatus(value); };
+    const setSafeStatusHint = (value: string) => { if (isMounted) setStatusHint(value); };
 
     const getPhoneLocation = async () => {
       try {
         const permission = await Location.requestForegroundPermissionsAsync();
 
         if (!permission.granted) {
-          setSafeStatusHint(
-            "Location permission denied. Continuing without GPS coordinates.",
-          );
+          setSafeStatusHint("Location permission denied. Continuing without GPS coordinates.");
           return null;
         }
 
@@ -197,10 +164,7 @@ export default function ProcessingScreen() {
           longitude: location.coords.longitude,
         };
 
-        if (isMounted) {
-          setCapturedLocation(coords);
-        }
-
+        if (isMounted) setCapturedLocation(coords);
         return coords;
       } catch (error) {
         console.error("Failed to get location:", error);
@@ -211,38 +175,23 @@ export default function ProcessingScreen() {
     const recordChunkFromMicrophone = async () => {
       const permission = await requestRecordingPermissionsAsync();
 
-      if (!permission.granted) {
-        throw new Error("Microphone permission denied");
-      }
+      if (!permission.granted) throw new Error("Microphone permission denied");
 
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-      });
-
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
 
       setSafeBackendStatus("recording");
-      setSafeStatusHint(
-        `Recording ${LIVE_RECORD_SECONDS} seconds from microphone`,
-      );
+      setSafeStatusHint(`Recording ${LIVE_RECORD_SECONDS} seconds from microphone`);
       setSafeStep(1);
       setSafeProgress(12);
 
       recorder.record({ forDuration: LIVE_RECORD_SECONDS });
-
       await sleep(LIVE_RECORD_SECONDS * 1000 + 800);
 
-      if (recorder.isRecording) {
-        await recorder.stop();
-      }
+      if (recorder.isRecording) await recorder.stop();
 
       const uri = recorder.uri;
-
-      if (!uri) {
-        throw new Error("No audio file was created after recording");
-      }
-
+      if (!uri) throw new Error("No audio file was created after recording");
       return uri;
     };
 
@@ -279,7 +228,6 @@ export default function ProcessingScreen() {
           if (attempts >= 2) setSafeStep(2);
           if (attempts >= 4) setSafeStep(3);
           if (attempts >= 6) setSafeStep(4);
-
           setSafeProgress(Math.min(35 + attempts * 2, 92));
           setSafeStatusHint("Server is analyzing the uploaded recording");
         } else if (status === "failed") {
@@ -292,12 +240,9 @@ export default function ProcessingScreen() {
         await sleep(1500);
       }
 
-      if (!isComplete) {
-        throw new Error("Recording processing timed out");
-      }
+      if (!isComplete) throw new Error("Recording processing timed out");
 
       const recording = await getRecording(Number(recordingId));
-
       if (!isMounted) return;
 
       setSafeStep(PROCESSING_STEPS.length);
@@ -307,14 +252,9 @@ export default function ProcessingScreen() {
 
       setTimeout(() => {
         if (!isMounted) return;
-
         router.replace({
           pathname: "/SoundTrack/analysis-result",
-          params: {
-            mode: "recorded",
-            recording: JSON.stringify(recording),
-            audioName: audioName ?? "",
-          },
+          params: { mode: "recorded", recording: JSON.stringify(recording), audioName: audioName ?? "" },
         } as any);
       }, 500);
     };
@@ -360,17 +300,8 @@ export default function ProcessingScreen() {
       while (isMounted && attempts < 40) {
         attempts += 1;
 
-        const statusResponse = await getLiveSessionStatus(
-          Number(liveSessionId),
-        );
-
-        console.log("LIVE STATUS RESPONSE:", statusResponse);
-
-        const processingStatus = String(
-          statusResponse.processing_status ?? "",
-        ).toLowerCase();
-
-        console.log("LIVE PROCESSING STATUS:", processingStatus);
+        const statusResponse = await getLiveSessionStatus(Number(liveSessionId));
+        const processingStatus = String(statusResponse.processing_status ?? "").toLowerCase();
 
         if (!isMounted) return;
 
@@ -393,16 +324,12 @@ export default function ProcessingScreen() {
         await sleep(1500);
       }
 
-      if (!isComplete) {
-        throw new Error("Live session processing timed out");
-      }
+      if (!isComplete) throw new Error("Live session processing timed out");
 
       const session = await getLiveSession(Number(liveSessionId));
-
       if (!isMounted) return;
 
       await endLiveSession(Number(liveSessionId));
-
       if (!isMounted) return;
 
       setSafeStep(PROCESSING_STEPS.length);
@@ -412,15 +339,11 @@ export default function ProcessingScreen() {
 
       setTimeout(() => {
         if (!isMounted) return;
-
         router.replace({
           pathname: "/SoundTrack/analysis-result",
           params: {
             mode: "live",
-            liveSession: JSON.stringify({
-              ...session,
-              location: coords ?? undefined,
-            }),
+            liveSession: JSON.stringify({ ...session, location: coords ?? undefined }),
           },
         } as any);
       }, 500);
@@ -428,16 +351,8 @@ export default function ProcessingScreen() {
 
     const runProcessing = async () => {
       try {
-        if (mode === "recorded") {
-          await processRecorded();
-          return;
-        }
-
-        if (mode === "live") {
-          await processLive();
-          return;
-        }
-
+        if (mode === "recorded") { await processRecorded(); return; }
+        if (mode === "live") { await processLive(); return; }
         Alert.alert("Error", "Invalid processing mode");
         router.back();
       } catch (error) {
@@ -449,9 +364,7 @@ export default function ProcessingScreen() {
 
     runProcessing();
 
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [mode, recordingId, liveSessionId, audioName, recorder, router]);
 
   return (
@@ -461,6 +374,7 @@ export default function ProcessingScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Analyzing Sound</Text>
           <Text style={styles.subtitle}>
@@ -468,6 +382,7 @@ export default function ProcessingScreen() {
           </Text>
         </View>
 
+        {/* Waveform Animation */}
         <View style={styles.animationContainer}>
           <View style={styles.waveformContainer}>
             {waveAnims.map((anim, index) => (
@@ -482,7 +397,7 @@ export default function ProcessingScreen() {
                     }),
                     opacity: anim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [0.3, 1],
+                      outputRange: [0.2, 0.8],
                     }),
                   },
                 ]}
@@ -499,10 +414,11 @@ export default function ProcessingScreen() {
           </Animated.View>
 
           <View style={styles.spinnerContainer}>
-            <ActivityIndicator size="large" color="#2ECC71" />
+            <ActivityIndicator size="large" color="#16A34A" />
           </View>
         </View>
 
+        {/* Progress */}
         <View style={styles.progressSection}>
           <View style={styles.progressBarContainer}>
             <View style={[styles.progressBar, { width: `${progress}%` }]} />
@@ -510,6 +426,7 @@ export default function ProcessingScreen() {
           <Text style={styles.progressText}>{progress}%</Text>
         </View>
 
+        {/* Status Info Card */}
         <View style={styles.statusInfoCard}>
           <View style={styles.statusInfoRow}>
             <Text style={styles.statusInfoLabel}>Backend Status</Text>
@@ -538,6 +455,7 @@ export default function ProcessingScreen() {
           ) : null}
         </View>
 
+        {/* Processing Steps */}
         <View style={styles.stepsContainer}>
           <Text style={styles.stepsTitle}>Processing Steps</Text>
           {PROCESSING_STEPS.map((step, index) => (
@@ -548,7 +466,7 @@ export default function ProcessingScreen() {
                     <Text style={styles.checkmark}>✓</Text>
                   </View>
                 ) : index === currentStep - 1 ? (
-                  <ActivityIndicator size="small" color="#2ECC71" />
+                  <ActivityIndicator size="small" color="#16A34A" />
                 ) : (
                   <View style={styles.pendingDot} />
                 )}
@@ -566,6 +484,7 @@ export default function ProcessingScreen() {
           ))}
         </View>
 
+        {/* Footer Badge */}
         <View style={styles.footer}>
           <View style={styles.statusBadge}>
             <View style={styles.statusDot} />
@@ -580,7 +499,7 @@ export default function ProcessingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#F9FAFB",
   },
   content: {
     flexGrow: 1,
@@ -591,16 +510,17 @@ const styles = StyleSheet.create({
     minHeight: "100%",
   },
 
+  // Header
   header: { alignItems: "center", marginTop: 0 },
-  title: { fontSize: 32, color: "#FFF", fontWeight: "bold" },
-  subtitle: { fontSize: 15, color: "#8BC4A9", marginTop: 10 },
+  title: { fontSize: 32, color: "#111827", fontWeight: "bold" },
+  subtitle: { fontSize: 15, color: "#6B7280", marginTop: 10 },
 
+  // Animation
   animationContainer: {
     alignItems: "center",
     justifyContent: "center",
     height: 160,
   },
-
   waveformContainer: {
     flexDirection: "row",
     gap: 8,
@@ -609,23 +529,21 @@ const styles = StyleSheet.create({
   },
   waveBar: {
     width: 6,
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
     borderRadius: 3,
   },
-
   centerIcon: { position: "absolute" },
   iconCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 4,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
   },
   iconText: { fontSize: 48 },
-
   spinnerContainer: {
     position: "absolute",
     width: 140,
@@ -634,31 +552,38 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  // Progress
   progressSection: { marginVertical: 32 },
   progressBarContainer: {
     height: 8,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E5E7EB",
     borderRadius: 4,
     overflow: "hidden",
   },
   progressBar: {
     height: "100%",
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
   },
   progressText: {
-    color: "#2ECC71",
+    color: "#16A34A",
     textAlign: "right",
     fontWeight: "bold",
     marginTop: 8,
   },
 
+  // Status Info Card
   statusInfoCard: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 18,
     borderWidth: 1,
-    borderColor: "#1A3D2E",
+    borderColor: "#E5E7EB",
     marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statusInfoRow: {
     flexDirection: "row",
@@ -666,38 +591,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statusInfoLabel: {
-    color: "#8BC4A9",
+    color: "#6B7280",
     fontSize: 13,
     fontWeight: "600",
   },
   statusInfoValue: {
-    color: "#2ECC71",
+    color: "#16A34A",
     fontSize: 14,
     fontWeight: "700",
     textTransform: "capitalize",
   },
   statusHint: {
-    color: "#D7F5E6",
+    color: "#374151",
     fontSize: 14,
     marginTop: 10,
     lineHeight: 20,
   },
   metaLabel: {
-    color: "#6B9F88",
+    color: "#9CA3AF",
     marginTop: 10,
     fontSize: 12,
   },
 
+  // Steps
   stepsContainer: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
-    borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   stepsTitle: {
     fontSize: 16,
-    color: "#FFF",
+    color: "#111827",
     fontWeight: "bold",
     marginBottom: 16,
   },
@@ -717,46 +648,47 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
     alignItems: "center",
     justifyContent: "center",
   },
   checkmark: {
-    color: "#0A1F17",
+    color: "#FFFFFF",
     fontWeight: "bold",
   },
   pendingDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E5E7EB",
     borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
   },
-  stepText: { color: "#6B9F88" },
-  stepTextActive: { color: "#2ECC71", fontWeight: "600" },
-  stepTextCompleted: { color: "#8BC4A9" },
+  stepText: { color: "#9CA3AF" },
+  stepTextActive: { color: "#16A34A", fontWeight: "600" },
+  stepTextCompleted: { color: "#6B7280" },
 
+  // Footer
   footer: { alignItems: "center", marginBottom: 20 },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#DCFCE7",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
     marginTop: 20,
   },
   statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
     marginRight: 10,
   },
-  statusText: { color: "#2ECC71", fontWeight: "600" },
+  statusText: { color: "#16A34A", fontWeight: "600" },
 
   scrollContent: {
     flexGrow: 1,

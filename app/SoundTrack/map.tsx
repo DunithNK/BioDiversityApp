@@ -36,26 +36,20 @@ const GAL_OYA_BOUNDARY = [
 
 export default function DetectionMapScreen() {
   const [detections, setDetections] = useState<AlertListItem[]>([]);
-  const [selectedMarker, setSelectedMarker] = useState<AlertListItem | null>(
-    null,
-  );
-  const [selectedMarkerDetail, setSelectedMarkerDetail] =
-    useState<AlertDetail | null>(null);
+  const [selectedMarker, setSelectedMarker] = useState<AlertListItem | null>(null);
+  const [selectedMarkerDetail, setSelectedMarkerDetail] = useState<AlertDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [fadeAnim] = useState(new Animated.Value(0));
-
   const [isMapLocked, setIsMapLocked] = useState(true);
 
   useEffect(() => {
     const loadAlerts = async () => {
       try {
         const data = await getAlerts();
-
         const filtered = data.filter(
           (d) => d.location?.latitude != null && d.location?.longitude != null,
         );
-
         setDetections(filtered);
       } catch (error) {
         console.error("Failed to load alerts:", error);
@@ -103,16 +97,11 @@ export default function DetectionMapScreen() {
 
   const getSeverityColor = (severity?: string | null) => {
     switch (severity?.toLowerCase()) {
-      case "critical":
-        return "#E74C3C";
-      case "high":
-        return "#F39C12";
-      case "medium":
-        return "#F1C40F";
-      case "low":
-        return "#2ECC71";
-      default:
-        return "#95A5A6";
+      case "critical": return "#DC2626";
+      case "high":     return "#D97706";
+      case "medium":   return "#CA8A04";
+      case "low":      return "#16A34A";
+      default:         return "#6B7280";
     }
   };
 
@@ -123,6 +112,7 @@ export default function DetectionMapScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
         <View style={styles.headerContent}>
           <View style={styles.headerIcon}>
@@ -143,6 +133,7 @@ export default function DetectionMapScreen() {
         </View>
       </Animated.View>
 
+      {/* Map */}
       <View style={styles.mapContainer}>
         <MapView
           provider={PROVIDER_GOOGLE}
@@ -159,9 +150,9 @@ export default function DetectionMapScreen() {
         >
           <Polygon
             coordinates={GAL_OYA_BOUNDARY}
-            strokeColor="#2ECC71"
+            strokeColor="#16A34A"
             strokeWidth={3}
-            fillColor="rgba(46, 204, 113, 0.15)"
+            fillColor="rgba(22, 163, 74, 0.15)"
           />
 
           {detections.map((item) => (
@@ -209,6 +200,7 @@ export default function DetectionMapScreen() {
           ))}
         </MapView>
 
+        {/* Map Lock Button */}
         <TouchableOpacity
           style={styles.mapLockButton}
           onPress={() => setIsMapLocked((prev) => !prev)}
@@ -218,28 +210,29 @@ export default function DetectionMapScreen() {
           </Text>
         </TouchableOpacity>
 
+        {/* Legend */}
         <Animated.View style={[styles.legend, { opacity: fadeAnim }]}>
           <View style={styles.legendHeader}>
             <Text style={styles.legendTitle}>Legend</Text>
           </View>
 
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: "#E74C3C" }]} />
+            <View style={[styles.legendDot, { backgroundColor: "#DC2626" }]} />
             <Text style={styles.legendText}>Critical</Text>
           </View>
 
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: "#F39C12" }]} />
+            <View style={[styles.legendDot, { backgroundColor: "#D97706" }]} />
             <Text style={styles.legendText}>High</Text>
           </View>
 
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: "#F1C40F" }]} />
+            <View style={[styles.legendDot, { backgroundColor: "#CA8A04" }]} />
             <Text style={styles.legendText}>Medium</Text>
           </View>
 
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: "#2ECC71" }]} />
+            <View style={[styles.legendDot, { backgroundColor: "#16A34A" }]} />
             <Text style={styles.legendText}>Low</Text>
           </View>
 
@@ -249,6 +242,7 @@ export default function DetectionMapScreen() {
           </View>
         </Animated.View>
 
+        {/* Stats Card */}
         {showStats && (
           <Animated.View style={[styles.statsCard, { opacity: fadeAnim }]}>
             <Text style={styles.statsTitle}>Detection Statistics</Text>
@@ -261,7 +255,7 @@ export default function DetectionMapScreen() {
               <View style={styles.statDivider} />
 
               <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: "#E74C3C" }]}>
+                <Text style={[styles.statValue, { color: "#DC2626" }]}>
                   {criticalDetections.length}
                 </Text>
                 <Text style={styles.statLabel}>Critical</Text>
@@ -270,7 +264,7 @@ export default function DetectionMapScreen() {
               <View style={styles.statDivider} />
 
               <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: "#F39C12" }]}>
+                <Text style={[styles.statValue, { color: "#D97706" }]}>
                   {highDetections.length}
                 </Text>
                 <Text style={styles.statLabel}>High</Text>
@@ -279,7 +273,7 @@ export default function DetectionMapScreen() {
               <View style={styles.statDivider} />
 
               <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: "#F1C40F" }]}>
+                <Text style={[styles.statValue, { color: "#CA8A04" }]}>
                   {mediumDetections.length}
                 </Text>
                 <Text style={styles.statLabel}>Medium</Text>
@@ -288,7 +282,7 @@ export default function DetectionMapScreen() {
               <View style={styles.statDivider} />
 
               <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: "#2ECC71" }]}>
+                <Text style={[styles.statValue, { color: "#16A34A" }]}>
                   {lowDetections.length}
                 </Text>
                 <Text style={styles.statLabel}>Low</Text>
@@ -298,6 +292,7 @@ export default function DetectionMapScreen() {
         )}
       </View>
 
+      {/* Info Card */}
       {selectedMarker && (
         <Animated.View style={[styles.infoCard, { opacity: fadeAnim }]}>
           <View style={styles.infoHeader}>
@@ -326,8 +321,8 @@ export default function DetectionMapScreen() {
           <View style={styles.infoContent}>
             {loadingDetail ? (
               <View style={{ paddingVertical: 20, alignItems: "center" }}>
-                <ActivityIndicator size="small" color="#2ECC71" />
-                <Text style={{ color: "#8BC4A9", marginTop: 10 }}>
+                <ActivityIndicator size="small" color="#16A34A" />
+                <Text style={{ color: "#6B7280", marginTop: 10 }}>
                   Loading details...
                 </Text>
               </View>
@@ -342,12 +337,22 @@ export default function DetectionMapScreen() {
                         {
                           backgroundColor:
                             selectedMarker.mode === "live"
-                              ? "#1A3D2E"
-                              : "#2C1A3D",
+                              ? "#DCFCE7"
+                              : "#EDE9FE",
                         },
                       ]}
                     >
-                      <Text style={styles.infoBadgeText}>
+                      <Text
+                        style={[
+                          styles.infoBadgeText,
+                          {
+                            color:
+                              selectedMarker.mode === "live"
+                                ? "#16A34A"
+                                : "#7C3AED",
+                          },
+                        ]}
+                      >
                         {selectedMarker.mode === "live"
                           ? "🎙️ Live"
                           : "📁 Recorded"}
@@ -424,6 +429,7 @@ export default function DetectionMapScreen() {
         </Animated.View>
       )}
 
+      {/* Empty State */}
       {detections.length === 0 && (
         <Animated.View style={[styles.emptyState, { opacity: fadeAnim }]}>
           <View style={styles.emptyIconContainer}>
@@ -442,16 +448,22 @@ export default function DetectionMapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A1F17",
+    backgroundColor: "#F9FAFB",
   },
 
+  // Header
   header: {
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     paddingTop: 10,
     paddingBottom: 16,
     paddingHorizontal: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: "#1A3D2E",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   headerContent: {
     flexDirection: "row",
@@ -461,12 +473,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
     borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderColor: "#16A34A",
   },
   iconText: {
     fontSize: 24,
@@ -476,26 +488,29 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "bold",
     marginBottom: 2,
   },
   subtitle: {
     fontSize: 13,
-    color: "#8BC4A9",
+    color: "#6B7280",
   },
   statsToggle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   statsToggleText: {
     fontSize: 20,
   },
 
+  // Map
   mapContainer: {
     flex: 1,
     position: "relative",
@@ -504,6 +519,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  // Marker
   customMarker: {
     width: 36,
     height: 36,
@@ -522,6 +538,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
 
+  // Callout
   callout: {
     padding: 10,
     minWidth: 180,
@@ -530,34 +547,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
     marginBottom: 6,
-    color: "#0A1F17",
+    color: "#111827",
   },
   calloutText: {
     fontSize: 12,
-    color: "#1A3D2E",
+    color: "#6B7280",
     marginBottom: 2,
   },
 
+  // Legend
   legend: {
     position: "absolute",
     top: 16,
     right: 16,
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 12,
-    borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     minWidth: 150,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   legendHeader: {
     marginBottom: 8,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#1A3D2E",
+    borderBottomColor: "#E5E7EB",
   },
   legendTitle: {
     fontSize: 13,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "bold",
   },
   legendItem: {
@@ -576,29 +599,35 @@ const styles = StyleSheet.create({
   legendLine: {
     width: 20,
     height: 3,
-    backgroundColor: "#2ECC71",
+    backgroundColor: "#16A34A",
     marginRight: 8,
     borderRadius: 2,
   },
   legendText: {
     fontSize: 12,
-    color: "#8BC4A9",
+    color: "#6B7280",
   },
 
+  // Stats Card
   statsCard: {
     position: "absolute",
     bottom: 16,
     left: 16,
     right: 16,
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
-    borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   statsTitle: {
     fontSize: 14,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "bold",
     marginBottom: 12,
     textAlign: "center",
@@ -615,45 +644,51 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 30,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#E5E7EB",
   },
   statValue: {
     fontSize: 20,
-    color: "#2ECC71",
+    color: "#16A34A",
     fontWeight: "bold",
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 11,
-    color: "#8BC4A9",
+    color: "#9CA3AF",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
 
+  // Info Card
   infoCard: {
     position: "absolute",
     bottom: 16,
     left: 16,
     right: 16,
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: "#2ECC71",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   infoHeader: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#123B2C",
+    backgroundColor: "#F0FDF4",
     borderBottomWidth: 1,
-    borderBottomColor: "#1A3D2E",
+    borderBottomColor: "#E5E7EB",
   },
   infoIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -666,25 +701,27 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "bold",
     marginBottom: 2,
   },
   infoDate: {
     fontSize: 12,
-    color: "#8BC4A9",
+    color: "#6B7280",
   },
   closeButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   closeText: {
-    fontSize: 18,
-    color: "#8BC4A9",
+    fontSize: 16,
+    color: "#6B7280",
     fontWeight: "bold",
   },
   infoContent: {
@@ -700,7 +737,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 11,
-    color: "#8BC4A9",
+    color: "#9CA3AF",
     marginBottom: 6,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -713,47 +750,54 @@ const styles = StyleSheet.create({
   },
   infoBadgeText: {
     fontSize: 13,
-    color: "#FFFFFF",
     fontWeight: "600",
   },
   infoValue: {
     fontSize: 14,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "600",
   },
   infoValueLarge: {
     fontSize: 20,
-    color: "#2ECC71",
+    color: "#16A34A",
     fontWeight: "bold",
   },
   coordinatesContainer: {
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#F9FAFB",
     padding: 10,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   coordinatesText: {
     fontSize: 13,
-    color: "#8BC4A9",
+    color: "#6B7280",
     fontFamily: "monospace",
   },
 
+  // Empty State
   emptyState: {
     position: "absolute",
     top: "30%",
     left: 40,
     right: 40,
-    backgroundColor: "#0F2F23",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 30,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#1A3D2E",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   emptyIconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#1A3D2E",
+    backgroundColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
@@ -763,18 +807,19 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    color: "#FFFFFF",
+    color: "#111827",
     fontWeight: "bold",
     marginBottom: 8,
     textAlign: "center",
   },
   emptyText: {
     fontSize: 14,
-    color: "#8BC4A9",
+    color: "#6B7280",
     textAlign: "center",
     lineHeight: 20,
   },
 
+  // Map Lock Button
   mapLockButton: {
     position: "absolute",
     top: 16,
@@ -782,16 +827,16 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 24,
-    backgroundColor: "#0F2F23",
-    borderWidth: 2,
-    borderColor: "#2ECC71",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 6,
+    elevation: 4,
   },
   mapLockButtonText: {
     fontSize: 22,
