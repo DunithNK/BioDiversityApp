@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Region } from "react-native-maps";
 
 type AlertItem = {
   alert_id: string;
@@ -34,13 +34,7 @@ type AlertWithAssessment = AlertItem & {
 const BACKEND_URL = "http://192.168.1.3:8000";
 const STORAGE_KEY = "CACHED_ALERTS";
 
-/* ------------------ GAL OYA SAFE BOUNDARY ------------------ */
-const LAT_MIN = 6.8;
-const LAT_MAX = 7.4;
-const LON_MIN = 81.2;
-const LON_MAX = 81.6;
-
-/* Center of Gal Oya */
+/* ------------------ GAL OYA REGION ------------------ */
 const GAL_OYA_REGION = {
   latitude: 7.1,
   longitude: 81.4,
@@ -50,10 +44,12 @@ const GAL_OYA_REGION = {
 
 export default function AlertMapScreen() {
   const router = useRouter();
+  const mapRef = useRef<MapView>(null);
   const [alerts, setAlerts] = useState<AlertWithAssessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOutside, setShowOutside] = useState(false);
   const [legendVisible, setLegendVisible] = useState(false);
+  const [isMapLocked, setIsMapLocked] = useState(true);
 
   useEffect(() => {
     loadAlerts();
@@ -106,12 +102,16 @@ export default function AlertMapScreen() {
   const insideCount = alerts.filter((a) => a.is_outside !== true).length;
   const outsideCount = alerts.filter((a) => a.is_outside === true).length;
 
-  /* ------------------ DYNAMIC REGION ------------------ */
-  const getMapRegion = () => {
-    if (!showOutside || filteredAlerts.length === 0) return GAL_OYA_REGION;
+  /* ------------------ COMPUTE REGION ------------------ */
+  const computeRegion = (showAll: boolean, alertList: AlertWithAssessment[]): Region => {
+    const visible = showAll
+      ? alertList
+      : alertList.filter((a) => a.is_outside !== true);
 
-    const lats = filteredAlerts.map((a) => a.latitude);
-    const lons = filteredAlerts.map((a) => a.longitude);
+    if (!showAll || visible.length === 0) return GAL_OYA_REGION;
+
+    const lats = visible.map((a) => a.latitude);
+    const lons = visible.map((a) => a.longitude);
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
     const minLon = Math.min(...lons);
@@ -123,6 +123,33 @@ export default function AlertMapScreen() {
       latitudeDelta: Math.max((maxLat - minLat) * 1.5, 0.5),
       longitudeDelta: Math.max((maxLon - minLon) * 1.5, 0.5),
     };
+  };
+
+  /* ------------------ SAFE TOGGLE HANDLER ------------------ */
+  const handleToggle = (value: boolean) => {
+    setShowOutside(value);
+    // When switching to outside view, always unlock the map so user can scroll
+    if (value) setIsMapLocked(false);
+    // When switching back to Gal Oya, re-lock to park area
+    else setIsMapLocked(true);
+
+    const targetRegion = computeRegion(value, alerts);
+    setTimeout(() => {
+      mapRef.current?.animateToRegion(targetRegion, 500);
+    }, 50);
+  };
+
+  /* ------------------ LOCK TOGGLE HANDLER ------------------ */
+  // Lock only applies when viewing Gal Oya (showOutside = false)
+  const handleLockToggle = () => {
+    const nextLocked = !isMapLocked;
+    setIsMapLocked(nextLocked);
+    // When re-locking, snap map back to Gal Oya region
+    if (nextLocked) {
+      setTimeout(() => {
+        mapRef.current?.animateToRegion(GAL_OYA_REGION, 400);
+      }, 50);
+    }
   };
 
   /* ------------------ SEVERITY HELPERS ------------------ */
@@ -185,19 +212,26 @@ export default function AlertMapScreen() {
   }
 
   /* ------------------ MAP VIEW ------------------ */
+
+  // When Gal Oya is locked: no scroll, no rotate, no pitch — zoom only
+  // When unlocked OR in outside view: full freedom
+  const mapInteractive = !isMapLocked || showOutside;
+
   return (
     <View style={styles.container}>
 
       {/* ── Map ── */}
       <MapView
+        ref={mapRef}
         style={styles.map}
-        region={getMapRegion()}
-        minZoomLevel={showOutside ? 5 : 10}
+        initialRegion={GAL_OYA_REGION}
+        minZoomLevel={5}
         maxZoomLevel={18}
         pitchEnabled={false}
         rotateEnabled={false}
-        scrollEnabled={showOutside}
+        scrollEnabled={mapInteractive}
         zoomEnabled={true}
+        zoomTapEnabled={mapInteractive}
         showsBuildings={false}
         showsTraffic={false}
         showsIndoors={false}
@@ -263,18 +297,18 @@ export default function AlertMapScreen() {
         )}
       </View>
 
-      {/* ── Toggle Filter (bottom-left of header) ── */}
+      {/* ── Toggle Filter ── */}
       <View style={styles.toggleContainer}>
         <Text style={styles.toggleLabel}>Show Outside Detections</Text>
         <Switch
           value={showOutside}
-          onValueChange={setShowOutside}
+          onValueChange={handleToggle}
           trackColor={{ false: "#CBD5E1", true: "#F97316" }}
           thumbColor="#FFF"
         />
       </View>
 
-      {/* ── Legend Button (top-right, same row as toggle) ── */}
+      {/* ── Legend Button ── */}
       <TouchableOpacity
         style={styles.legendBtn}
         onPress={() => setLegendVisible(true)}
@@ -284,6 +318,28 @@ export default function AlertMapScreen() {
         <Text style={styles.legendBtnText}>Legend</Text>
       </TouchableOpacity>
 
+      {/* ── Lock Button — only shown in Gal Oya view ── */}
+      {!showOutside && (
+        <TouchableOpacity
+          style={[
+            styles.lockBtn,
+            isMapLocked ? styles.lockBtnLocked : styles.lockBtnUnlocked,
+          ]}
+          onPress={handleLockToggle}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.lockBtnIcon}>
+            {isMapLocked ? "🔒" : "🔓"}
+          </Text>
+          <Text style={[
+            styles.lockBtnText,
+            isMapLocked ? styles.lockBtnTextLocked : styles.lockBtnTextUnlocked,
+          ]}>
+            {isMapLocked ? "Locked" : "Unlocked"}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* ── Legend Modal ── */}
       <Modal
         visible={legendVisible}
@@ -291,16 +347,13 @@ export default function AlertMapScreen() {
         animationType="fade"
         onRequestClose={() => setLegendVisible(false)}
       >
-        {/* Tapping the backdrop closes the modal */}
         <TouchableOpacity
           style={styles.modalBackdrop}
           activeOpacity={1}
           onPress={() => setLegendVisible(false)}
         >
-          {/* Inner card — tap does NOT close */}
           <TouchableOpacity activeOpacity={1} style={styles.legendCard} onPress={() => {}}>
 
-            {/* Title row */}
             <View style={styles.legendCardHeader}>
               <Text style={styles.legendTitle}>Legend</Text>
               <TouchableOpacity
@@ -312,7 +365,6 @@ export default function AlertMapScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Severity */}
             <Text style={styles.legendSubtitle}>Severity (Inside Gal Oya):</Text>
             <View style={styles.legendRow}>
               <View style={styles.legendItem}>
@@ -337,7 +389,6 @@ export default function AlertMapScreen() {
 
             <View style={styles.legendDivider} />
 
-            {/* Location markers */}
             <Text style={styles.legendSubtitle}>Location Markers:</Text>
             <View style={styles.legendRow}>
               <View style={styles.legendItem}>
@@ -358,7 +409,6 @@ export default function AlertMapScreen() {
               * Gal Oya markers show health severity colors
             </Text>
 
-            {/* Done button */}
             <TouchableOpacity
               style={styles.legendDoneBtn}
               onPress={() => setLegendVisible(false)}
@@ -511,6 +561,41 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "700",
+  },
+
+  // ── Lock Button ──
+  lockBtn: {
+    position: "absolute",
+    top: 210,
+    right: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  lockBtnLocked: {
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    borderColor: "#EF4444",
+  },
+  lockBtnUnlocked: {
+    backgroundColor: "rgba(46, 204, 113, 0.15)",
+    borderColor: "#2ECC71",
+  },
+  lockBtnIcon: {
+    fontSize: 15,
+  },
+  lockBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  lockBtnTextLocked: {
+    color: "#EF4444",
+  },
+  lockBtnTextUnlocked: {
+    color: "#2ECC71",
   },
 
   // ── Modal backdrop ──
@@ -702,7 +787,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // Legacy (kept for safety)
+  // Legacy
   locationBadge: {
     width: 18,
     height: 18,

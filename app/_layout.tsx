@@ -5,6 +5,22 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+const GreenTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: '#16A34A',  // Green background during load
+  },
+};
+
+const GreenDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#16A34A',  // Green background during load (dark mode too)
+  },
+};
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -13,12 +29,16 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <ThemeProvider value={colorScheme === 'dark' ? GreenDarkTheme : GreenTheme}>
+      <Stack
+        screenOptions={{
+          contentStyle: { backgroundColor: '#16A34A' }, // Fills screen green before tabs load
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
     </ThemeProvider>
   );
 }
