@@ -1,4 +1,21 @@
-export const API_BASE_URL = "http://172.20.10.2:8000";
+import { Platform } from "react-native";
+
+const EXPO_PUBLIC_API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+
+function getDefaultApiBaseUrl() {
+  if (EXPO_PUBLIC_API_BASE_URL) {
+    return EXPO_PUBLIC_API_BASE_URL;
+  }
+
+  if (Platform.OS === "android") {
+    // Android emulator cannot reach the host machine via 127.0.0.1.
+    return "http://10.0.2.2:8000";
+  }
+
+  return "http://127.0.0.1:8000";
+}
+
+export const API_BASE_URL = getDefaultApiBaseUrl();
 
 export async function apiRequest<T>(
   endpoint: string,

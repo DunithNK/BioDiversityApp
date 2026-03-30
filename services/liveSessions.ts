@@ -13,17 +13,21 @@ export interface Probability {
 }
 
 export interface Distance {
-  value?: number | null;
-  unit?: string | null;
-  [key: string]: string | number | null | undefined;
+  estimated_m?: number | null;
+  min_m?: number | null;
+  max_m?: number | null;
+  confidence?: number | null;
+  [key: string]: number | null | undefined;
 }
 
 export interface LiveSessionSummary {
   id: number;
   device_id?: string | null;
   status: string;
+  processing_status: string;
   overall_is_leopard: boolean;
   best_confidence?: number | null;
+  distance?: Distance | null;
   last_location: Location;
   started_at: string;
   ended_at?: string | null;
@@ -129,7 +133,9 @@ export async function endLiveSession(
 }
 
 export interface LiveSessionStatusResponse {
-  live_session_id: number;
+  id: number;
+  device_id?: string | null;
+  status: string;
   processing_status: "idle" | "processing" | "complete" | "failed" | string;
 }
 

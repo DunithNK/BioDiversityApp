@@ -1,4 +1,8 @@
 import { getHistory } from "@/services/history";
+import {
+  getTrackedLiveSessions,
+  type TrackingPoint,
+} from "@/services/trackingSessions";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -9,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
 type DetectionItem = {
   id: string;
@@ -25,6 +30,7 @@ type DetectionItem = {
   } | null;
   confidence: number;
   isLeopard: boolean;
+  trackedPath: TrackingPoint[];
 };
 
 export default function DetectionHistoryScreen() {
@@ -32,10 +38,14 @@ export default function DetectionHistoryScreen() {
   const [history, setHistory] = useState<DetectionItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "live" | "recorded">("all");
+  const [expandedPathIds, setExpandedPathIds] = useState<string[]>([]);
 
   const loadHistory = async () => {
     try {
-      const data = await getHistory();
+      const [data, trackedSessions] = await Promise.all([
+        getHistory(),
+        getTrackedLiveSessions(),
+      ]);
 
       const mapped: DetectionItem[] = data.map((item) => {
         const confidenceRaw = item.confidence ?? 0;
@@ -46,12 +56,14 @@ export default function DetectionHistoryScreen() {
 
         const latitude = item.location?.latitude ?? undefined;
         const longitude = item.location?.longitude ?? undefined;
+        const trackedPath =
+          item.source === "live"
+            ? trackedSessions.find((session) => session.liveSessionId === item.id)
+                ?.points ?? []
+            : [];
 
         return {
-          id:
-            (item.source === "live" ? "live" : "recorded") +
-            "-" +
-            String(item.id),
+          id: `${item.source === "live" ? "live" : "recorded"}-${item.id}`,
           mode: item.source === "live" ? "live" : "recorded",
           date: item.created_at
             ? new Date(item.created_at).toLocaleString()
@@ -62,6 +74,7 @@ export default function DetectionHistoryScreen() {
           distance: item.distance ?? null,
           confidence,
           isLeopard: !!item.is_leopard,
+          trackedPath,
         };
       });
 
@@ -82,25 +95,38 @@ export default function DetectionHistoryScreen() {
     setRefreshing(false);
   };
 
-  const leopardHistory = useMemo(
-    () => history.filter((item) => item.isLeopard),
+  const visibleHistory = useMemo(
+    () =>
+      history.filter(
+        (item) => item.isLeopard || (item.mode === "live" && item.trackedPath.length > 0),
+      ),
     [history],
   );
 
   const liveCount = useMemo(
-    () => leopardHistory.filter((h) => h.mode === "live").length,
-    [leopardHistory],
+    () => visibleHistory.filter((item) => item.mode === "live").length,
+    [visibleHistory],
   );
 
   const recordedCount = useMemo(
-    () => leopardHistory.filter((h) => h.mode === "recorded").length,
-    [leopardHistory],
+    () => visibleHistory.filter((item) => item.mode === "recorded").length,
+    [visibleHistory],
   );
 
-  const filteredHistory = leopardHistory.filter((item) => {
-    if (filter === "all") return true;
-    return item.mode === filter;
-  });
+  const filteredHistory = useMemo(
+    () =>
+      visibleHistory.filter((item) => {
+        if (filter === "all") return true;
+        return item.mode === filter;
+      }),
+    [filter, visibleHistory],
+  );
+
+  const toggleTrackedPath = (id: string) => {
+    setExpandedPathIds((prev) =>
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id],
+    );
+  };
 
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 80) return "#16A34A";
@@ -124,8 +150,8 @@ export default function DetectionHistoryScreen() {
         </View>
         <Text style={styles.title}>Detection History</Text>
         <Text style={styles.subtitle}>
-          {leopardHistory.length}{" "}
-          {leopardHistory.length === 1 ? "detection" : "detections"} recorded
+          {visibleHistory.length}{" "}
+          {visibleHistory.length === 1 ? "history item" : "history items"} recorded
         </Text>
       </View>
 
@@ -141,7 +167,7 @@ export default function DetectionHistoryScreen() {
               filter === "all" && styles.activeFilterText,
             ]}
           >
-            All ({leopardHistory.length})
+            All ({visibleHistory.length})
           </Text>
         </TouchableOpacity>
 
@@ -161,10 +187,7 @@ export default function DetectionHistoryScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.filterTab,
-            filter === "recorded" && styles.activeFilter,
-          ]}
+          style={[styles.filterTab, filter === "recorded" && styles.activeFilter]}
           onPress={() => setFilter("recorded")}
           activeOpacity={0.7}
         >
@@ -191,31 +214,17 @@ export default function DetectionHistoryScreen() {
           />
         }
       >
-        {filteredHistory.length === 0 && (
+        {filteredHistory.length === 0 ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconContainer}>
-              <Text style={styles.emptyIcon}>🔍</Text>
+              <Text style={styles.emptyIcon}>🗺️</Text>
             </View>
-            <Text style={styles.emptyTitle}>
-              {filter === "all"
-                ? "No Detections Yet"
-                : `No ${filter} detections`}
-            </Text>
+            <Text style={styles.emptyTitle}>No History Yet</Text>
             <Text style={styles.emptyText}>
-              {filter === "all"
-                ? "Start listening to leopard sounds to see detections here"
-                : `No ${filter} detections found. Try a different filter.`}
+              Start live listening or upload audio to see detections and tracked routes here.
             </Text>
-            {filter !== "all" && (
-              <TouchableOpacity
-                style={styles.emptyButton}
-                onPress={() => setFilter("all")}
-              >
-                <Text style={styles.emptyButtonText}>Show All</Text>
-              </TouchableOpacity>
-            )}
           </View>
-        )}
+        ) : null}
 
         {filteredHistory.map((item, index) => (
           <View
@@ -227,36 +236,29 @@ export default function DetectionHistoryScreen() {
             ]}
           >
             <View style={styles.cardHeader}>
-              <View style={styles.modeContainer}>
-                <View
+              <View
+                style={[
+                  styles.modeBadge,
+                  item.mode === "live" ? styles.liveBadge : styles.recordedBadge,
+                ]}
+              >
+                <Text style={styles.modeIcon}>
+                  {item.mode === "live" ? "🎙️" : "📁"}
+                </Text>
+                <Text
                   style={[
-                    styles.modeBadge,
-                    item.mode === "live"
-                      ? styles.liveBadge
-                      : styles.recordedBadge,
+                    styles.modeText,
+                    item.mode === "live" ? styles.liveModeText : styles.recordedModeText,
                   ]}
                 >
-                  <Text style={styles.modeIcon}>
-                    {item.mode === "live" ? "🎙️" : "📁"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.modeText,
-                      item.mode === "live"
-                        ? styles.liveModeText
-                        : styles.recordedModeText,
-                    ]}
-                  >
-                    {item.mode === "live" ? "Live" : "Recorded"}
-                  </Text>
-                </View>
+                  {item.mode === "live" ? "Live" : "Recorded"}
+                </Text>
               </View>
+
               <View
                 style={[
                   styles.confidenceBadge,
-                  {
-                    backgroundColor: `${getConfidenceColor(item.confidence)}18`,
-                  },
+                  { backgroundColor: `${getConfidenceColor(item.confidence)}18` },
                 ]}
               >
                 <Text
@@ -271,9 +273,11 @@ export default function DetectionHistoryScreen() {
             </View>
 
             <View style={styles.speciesSection}>
-              <Text style={styles.speciesIcon}>🐆</Text>
+              <Text style={styles.speciesIcon}>{item.isLeopard ? "🐆" : "🗺️"}</Text>
               <View style={styles.speciesTextContainer}>
-                <Text style={styles.speciesName}>Sri Lankan Leopard</Text>
+                <Text style={styles.speciesName}>
+                  {item.isLeopard ? "Sri Lankan Leopard" : "Tracked Live Route"}
+                </Text>
                 <Text style={styles.dateText}>{item.date}</Text>
               </View>
             </View>
@@ -294,25 +298,90 @@ export default function DetectionHistoryScreen() {
                 <View>
                   <Text style={styles.detailLabel}>Distance</Text>
                   <Text style={styles.detailValue}>
-                    {item.distance?.min_m != null &&
-                    item.distance?.max_m != null
+                    {item.distance?.min_m != null && item.distance?.max_m != null
                       ? `${Math.round(item.distance.min_m)} – ${Math.round(item.distance.max_m)} m`
                       : item.distance?.estimated_m != null
                         ? `${Math.round(item.distance.estimated_m)} m`
-                        : "N/A"}
+                        : item.trackedPath.length > 0
+                          ? `${item.trackedPath.length} points`
+                          : "N/A"}
                   </Text>
                 </View>
               </View>
             </View>
 
-            {item.latitude !== undefined && item.longitude !== undefined && (
+            {item.latitude !== undefined && item.longitude !== undefined ? (
               <View style={styles.locationContainer}>
                 <Text style={styles.locationIcon}>🌍</Text>
                 <Text style={styles.locationText}>
                   {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
                 </Text>
               </View>
-            )}
+            ) : null}
+
+            {item.mode === "live" && item.trackedPath.length > 0 ? (
+              <View style={styles.pathSection}>
+                <TouchableOpacity
+                  style={styles.pathToggle}
+                  onPress={() => toggleTrackedPath(item.id)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.pathToggleTitle}>Tracked Path Map</Text>
+                  <Text style={styles.pathToggleMeta}>
+                    {item.trackedPath.length} route points saved
+                  </Text>
+                  <Text style={styles.pathToggleAction}>
+                    {expandedPathIds.includes(item.id) ? "Hide Map" : "Show Map"}
+                  </Text>
+                </TouchableOpacity>
+
+                {expandedPathIds.includes(item.id) ? (
+                  <View>
+                    <Text style={styles.pathMapHint}>
+                      Pinch to zoom and drag to explore the tracked route
+                    </Text>
+                    <MapView
+                      provider={PROVIDER_GOOGLE}
+                      style={styles.pathMap}
+                      initialRegion={{
+                        latitude:
+                          item.trackedPath[item.trackedPath.length - 1]?.latitude ??
+                          item.latitude ??
+                          7.19,
+                        longitude:
+                          item.trackedPath[item.trackedPath.length - 1]?.longitude ??
+                          item.longitude ??
+                          81.46,
+                        latitudeDelta: 0.02,
+                        longitudeDelta: 0.02,
+                      }}
+                      scrollEnabled
+                      zoomEnabled
+                      zoomTapEnabled
+                      rotateEnabled
+                      pitchEnabled
+                    >
+                      {item.trackedPath.length > 1 ? (
+                        <Polyline
+                          coordinates={item.trackedPath}
+                          strokeColor="#16A34A"
+                          strokeWidth={5}
+                        />
+                      ) : null}
+                      {item.trackedPath[0] ? (
+                        <Marker coordinate={item.trackedPath[0]} pinColor="#2563EB" />
+                      ) : null}
+                      {item.trackedPath[item.trackedPath.length - 1] ? (
+                        <Marker
+                          coordinate={item.trackedPath[item.trackedPath.length - 1]}
+                          pinColor="#16A34A"
+                        />
+                      ) : null}
+                    </MapView>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
 
             <View style={styles.confidenceBar}>
               <View
@@ -454,11 +523,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 2,
     borderColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
   },
   emptyIcon: {
     fontSize: 36,
@@ -475,17 +539,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     lineHeight: 22,
-    marginBottom: 20,
-  },
-  emptyButton: {
-    backgroundColor: "#16A34A",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  emptyButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
   },
   card: {
     backgroundColor: "#FFFFFF",
@@ -494,11 +547,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
   },
   firstCard: {
     marginTop: 14,
@@ -511,9 +559,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
-  },
-  modeContainer: {
-    flexDirection: "row",
   },
   modeBadge: {
     flexDirection: "row",
@@ -629,6 +674,45 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
   },
+  pathSection: {
+    marginBottom: 14,
+  },
+  pathToggle: {
+    backgroundColor: "#ECFDF5",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+  },
+  pathToggleTitle: {
+    color: "#14532D",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  pathToggleMeta: {
+    color: "#166534",
+    fontSize: 12,
+    marginTop: 4,
+  },
+  pathToggleAction: {
+    color: "#15803D",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 8,
+  },
+  pathMap: {
+    width: "100%",
+    height: 190,
+    borderRadius: 16,
+    marginTop: 10,
+  },
+  pathMapHint: {
+    color: "#6B7280",
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 10,
+  },
   confidenceBar: {
     height: 8,
     backgroundColor: "#E5E7EB",
@@ -641,52 +725,45 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   confidenceLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "right",
+    fontSize: 13,
+    fontWeight: "700",
   },
   bottomSpacer: {
-    height: 90,
+    height: 120,
   },
   buttonContainer: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 16,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 24,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
+    gap: 10,
   },
   newDetectionBtn: {
-    flex: 1,
     backgroundColor: "#16A34A",
-    paddingVertical: 16,
     borderRadius: 16,
+    paddingVertical: 16,
     alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#16A34A",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
   newDetectionText: {
     color: "#FFFFFF",
-    fontWeight: "bold",
     fontSize: 16,
+    fontWeight: "800",
   },
   backBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    backgroundColor: "#F3F4F6",
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#16A34A",
+    paddingVertical: 15,
     alignItems: "center",
-    justifyContent: "center",
   },
   backText: {
-    color: "#16A34A",
-    fontWeight: "bold",
-    fontSize: 16,
+    color: "#374151",
+    fontSize: 15,
+    fontWeight: "700",
   },
 });

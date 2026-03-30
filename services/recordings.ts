@@ -25,9 +25,11 @@ export interface Probability {
 }
 
 export interface Distance {
-  value?: number | null;
-  unit?: string | null;
-  [key: string]: string | number | null | undefined;
+  estimated_m?: number | null;
+  min_m?: number | null;
+  max_m?: number | null;
+  confidence?: number | null;
+  [key: string]: number | null | undefined;
 }
 
 export interface RecordingChunk {
