@@ -21,6 +21,7 @@ export default function RootLayout() {
           options={{
             headerTitle: "",
             headerBackTitle: "",
+            headerBackButtonDisplayMode: "minimal",
           }}
         />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />

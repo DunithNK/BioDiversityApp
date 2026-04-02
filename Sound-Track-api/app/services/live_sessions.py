@@ -6,6 +6,11 @@ from typing import Any, Protocol
 
 from sqlalchemy.orm import Session
 
+from app.core.config import (
+    LEOPARD_MIN_POSITIVE_WINDOWS,
+    LEOPARD_STRONG_WINDOW_THRESHOLD,
+    LEOPARD_WINDOW_THRESHOLD,
+)
 from app.models.live_chunk import LiveChunk
 from app.models.live_session import LiveSession
 from app.services.alerts import create_or_update_alert_for_live_session
@@ -145,7 +150,7 @@ def update_live_session_summary(db: Session, session: LiveSession, latest_chunk:
             leopard_chunk = next((c for c in chunks if c.label == "leopard"), None)
             non_leopard_chunk = next((c for c in chunks if c.label == "non_leopard"), None)
 
-            if leopard_chunk is not None and _p_leopard(leopard_chunk) > 0.7:
+            if leopard_chunk is not None and _p_leopard(leopard_chunk) > LEOPARD_STRONG_WINDOW_THRESHOLD:
                 overall_is_leopard = True
                 chosen_chunk = leopard_chunk
                 chosen_confidence = _chunk_confidence(leopard_chunk)
@@ -156,10 +161,15 @@ def update_live_session_summary(db: Session, session: LiveSession, latest_chunk:
 
     # ---------- 3+ CHUNKS ----------
     else:
-        valid_leopard_chunks = [chunk for chunk in chunks if _p_leopard(chunk) > 0.6]
-        has_strong_leopard = any(_p_leopard(chunk) > 0.7 for chunk in valid_leopard_chunks)
+        valid_leopard_chunks = [
+            chunk for chunk in chunks if _p_leopard(chunk) > LEOPARD_WINDOW_THRESHOLD
+        ]
+        has_strong_leopard = any(
+            _p_leopard(chunk) > LEOPARD_STRONG_WINDOW_THRESHOLD
+            for chunk in valid_leopard_chunks
+        )
 
-        if len(valid_leopard_chunks) >= 2 and has_strong_leopard:
+        if len(valid_leopard_chunks) >= LEOPARD_MIN_POSITIVE_WINDOWS and has_strong_leopard:
             overall_is_leopard = True
             chosen_chunk = max(valid_leopard_chunks, key=_p_leopard)
             chosen_confidence = _avg_conf(valid_leopard_chunks)

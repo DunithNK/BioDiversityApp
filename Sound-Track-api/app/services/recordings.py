@@ -8,7 +8,12 @@ from typing import Any, Protocol
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.config import RECORDINGS_UPLOAD_DIR
+from app.core.config import (
+    LEOPARD_MIN_POSITIVE_WINDOWS,
+    LEOPARD_STRONG_WINDOW_THRESHOLD,
+    LEOPARD_WINDOW_THRESHOLD,
+    RECORDINGS_UPLOAD_DIR,
+)
 from app.models.recording import Recording
 from app.models.recording_chunk import RecordingChunk
 from app.schemas.common import RecordingStatus
@@ -149,7 +154,7 @@ def compute_recording_summary(recording: Recording, chunks: list[RecordingChunk]
         leopard_chunk = next((c for c in chunks if c.label == "leopard"), None)
         non_leopard_chunk = next((c for c in chunks if c.label == "non_leopard"), None)
 
-        if leopard_chunk is not None and p_leopard(leopard_chunk) > 0.7:
+        if leopard_chunk is not None and p_leopard(leopard_chunk) > LEOPARD_STRONG_WINDOW_THRESHOLD:
             recording.overall_label = "leopard"
             recording.overall_is_leopard = True
             recording.best_confidence = conf(leopard_chunk)
@@ -166,10 +171,14 @@ def compute_recording_summary(recording: Recording, chunks: list[RecordingChunk]
         return
 
     # ---------- 3 OR MORE WINDOWS ----------
-    valid_leopard_chunks = [chunk for chunk in chunks if p_leopard(chunk) > 0.6]
-    has_strong_leopard = any(p_leopard(chunk) > 0.7 for chunk in valid_leopard_chunks)
+    valid_leopard_chunks = [
+        chunk for chunk in chunks if p_leopard(chunk) > LEOPARD_WINDOW_THRESHOLD
+    ]
+    has_strong_leopard = any(
+        p_leopard(chunk) > LEOPARD_STRONG_WINDOW_THRESHOLD for chunk in valid_leopard_chunks
+    )
 
-    if len(valid_leopard_chunks) >= 2 and has_strong_leopard:
+    if len(valid_leopard_chunks) >= LEOPARD_MIN_POSITIVE_WINDOWS and has_strong_leopard:
         best_leopard_chunk = max(valid_leopard_chunks, key=p_leopard)
 
         recording.overall_label = "leopard"
