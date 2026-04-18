@@ -34,7 +34,7 @@ export async function apiRequest<T>(
             ? errorData.detail
             : JSON.stringify(errorData.detail);
       }
-    } catch {
+    } catch (error) {
       // ignore JSON parse errors
     }
 
