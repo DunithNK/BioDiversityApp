@@ -6,11 +6,10 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import MapView, {
   Callout,
