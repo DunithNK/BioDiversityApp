@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,9 @@ import {
   View,
 } from "react-native";
 
+import { getLiveChunks, type LiveChunk } from "@/services/liveSessions";
+import { getRecordingChunks, type RecordingChunk } from "@/services/recordings";
+
 type RecordingResult = {
   id?: number;
   label?: string | null;
@@ -16,6 +20,7 @@ type RecordingResult = {
   overall_is_leopard?: boolean;
   confidence?: number | null;
   best_confidence?: number | null;
+  best_chunk_id?: number | null;
   distance_m?: number | null;
   distance_min_m?: number | null;
   distance_max_m?: number | null;
@@ -29,6 +34,7 @@ type LiveSessionResult = {
   device_id?: string | null;
   overall_is_leopard?: boolean;
   best_confidence?: number | null;
+  best_chunk_id?: number | null;
   last_detected_at?: string | null;
   started_at?: string;
   ended_at?: string | null;
@@ -56,6 +62,9 @@ export default function AnalysisResultScreen() {
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
+  const [recordingBestChunk, setRecordingBestChunk] = useState<RecordingChunk | null>(null);
+  const [liveBestChunk, setLiveBestChunk] = useState<LiveChunk | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const parsedRecording: RecordingResult | null = useMemo(() => {
     if (!recording) return null;
@@ -93,6 +102,54 @@ export default function AnalysisResultScreen() {
     ]).start();
   }, [fadeAnim, scaleAnim]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadChunkDetails = async () => {
+      try {
+        setDetailsLoading(true);
+
+        if (mode === "recorded" && parsedRecording?.id) {
+          const chunks = await getRecordingChunks(parsedRecording.id);
+          if (!isMounted) return;
+
+          const matchedChunk =
+            chunks.find((chunk) => chunk.id === parsedRecording.best_chunk_id) ??
+            chunks.find((chunk) => chunk.is_leopard) ??
+            chunks[0] ??
+            null;
+
+          setRecordingBestChunk(matchedChunk);
+          return;
+        }
+
+        if (mode === "live" && parsedLiveSession?.id) {
+          const chunks = await getLiveChunks(parsedLiveSession.id);
+          if (!isMounted) return;
+
+          const matchedChunk =
+            chunks.find((chunk) => chunk.id === parsedLiveSession.best_chunk_id) ??
+            chunks.find((chunk) => chunk.is_leopard) ??
+            chunks[chunks.length - 1] ??
+            null;
+
+          setLiveBestChunk(matchedChunk);
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to load chunk details:", error);
+      } finally {
+        if (isMounted) setDetailsLoading(false);
+      }
+    };
+
+    loadChunkDetails();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mode, parsedLiveSession, parsedRecording]);
+
   const isLive = mode === "live";
 
   const detectionLabel = useMemo(() => {
@@ -114,13 +171,18 @@ export default function AnalysisResultScreen() {
     return rawLabel;
   }, [isLive, parsedLiveSession, parsedRecording]);
 
+  const isDetected = useMemo(() => {
+    if (isLive) return !!parsedLiveSession?.overall_is_leopard;
+    return !!parsedRecording?.overall_is_leopard;
+  }, [isLive, parsedLiveSession, parsedRecording]);
+
   const scientificName = useMemo(() => {
-    if (!parsedLiveSession?.overall_is_leopard) return "";
+    if (!isDetected) return "";
     if (detectionLabel.toLowerCase().includes("leopard")) {
       return "Panthera pardus kotiya";
     }
     return "No matching leopard vocalization";
-  }, [detectionLabel, parsedLiveSession]);
+  }, [detectionLabel, isDetected]);
 
   const confidence = useMemo(() => {
     if (isLive) return parsedLiveSession?.best_confidence ?? null;
@@ -135,9 +197,10 @@ export default function AnalysisResultScreen() {
 
   const distanceText = useMemo(() => {
     if (isLive) {
-      const min = parsedLiveSession?.distance?.min_m;
-      const max = parsedLiveSession?.distance?.max_m;
-      const exact = parsedLiveSession?.distance?.estimated_m;
+      const min = liveBestChunk?.distance?.min_m ?? parsedLiveSession?.distance?.min_m;
+      const max = liveBestChunk?.distance?.max_m ?? parsedLiveSession?.distance?.max_m;
+      const exact =
+        liveBestChunk?.distance?.estimated_m ?? parsedLiveSession?.distance?.estimated_m;
 
       if (!parsedLiveSession?.overall_is_leopard) return "N/A";
       if (min != null && max != null) return `${Math.round(min)} – ${Math.round(max)} m`;
@@ -145,19 +208,24 @@ export default function AnalysisResultScreen() {
       return "N/A";
     }
 
-    const min = parsedRecording?.distance_min_m;
-    const max = parsedRecording?.distance_max_m;
-    const exact = parsedRecording?.distance_m;
+    const min =
+      recordingBestChunk?.distance?.min_m ?? parsedRecording?.distance_min_m;
+    const max =
+      recordingBestChunk?.distance?.max_m ?? parsedRecording?.distance_max_m;
+    const exact =
+      recordingBestChunk?.distance?.estimated_m ?? parsedRecording?.distance_m;
 
     if (min != null && max != null) return `${Math.round(min)} – ${Math.round(max)} m`;
     if (exact != null) return `${Math.round(exact)} m`;
     return "N/A";
-  }, [isLive, parsedLiveSession, parsedRecording]);
+  }, [isLive, liveBestChunk, parsedLiveSession, parsedRecording, recordingBestChunk]);
 
   const locationText = useMemo(() => {
     if (isLive) {
-      const lat = parsedLiveSession?.last_location?.latitude;
-      const lng = parsedLiveSession?.last_location?.longitude;
+      const lat =
+        liveBestChunk?.location?.latitude ?? parsedLiveSession?.last_location?.latitude;
+      const lng =
+        liveBestChunk?.location?.longitude ?? parsedLiveSession?.last_location?.longitude;
       if (lat != null && lng != null) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
       return "Unavailable";
     }
@@ -166,7 +234,7 @@ export default function AnalysisResultScreen() {
     const lng = parsedRecording?.longitude;
     if (lat != null && lng != null) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     return "Unavailable";
-  }, [isLive, parsedLiveSession, parsedRecording]);
+  }, [isLive, liveBestChunk, parsedLiveSession, parsedRecording]);
 
   const detectedAt = useMemo(() => {
     const rawDate = isLive
@@ -179,11 +247,6 @@ export default function AnalysisResultScreen() {
     } catch {
       return String(rawDate);
     }
-  }, [isLive, parsedLiveSession, parsedRecording]);
-
-  const isDetected = useMemo(() => {
-    if (isLive) return !!parsedLiveSession?.overall_is_leopard;
-    return !!parsedRecording?.overall_is_leopard;
   }, [isLive, parsedLiveSession, parsedRecording]);
 
   return (
@@ -234,6 +297,13 @@ export default function AnalysisResultScreen() {
       {/* Details */}
       <Animated.View style={[styles.detailsContainer, { opacity: fadeAnim }]}>
         <Text style={styles.sectionTitle}>Detection Details</Text>
+
+        {detailsLoading ? (
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="small" color="#16A34A" />
+            <Text style={styles.loadingText}>Loading backend detection details...</Text>
+          </View>
+        ) : null}
 
         <View style={styles.detailsGrid}>
           <View style={styles.detailCard}>
@@ -405,6 +475,23 @@ const styles = StyleSheet.create({
   // Details
   detailsContainer: {
     marginBottom: 20,
+  },
+  loadingCard: {
+    backgroundColor: "#ECFDF5",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+  },
+  loadingText: {
+    color: "#166534",
+    fontSize: 14,
+    fontWeight: "500",
   },
   sectionTitle: {
     fontSize: 18,

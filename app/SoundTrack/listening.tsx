@@ -17,11 +17,26 @@ import { createRecording } from "@/services/recordings";
 export default function ListeningScreen() {
   const router = useRouter();
 
-  const [mode, setMode] = useState<"live" | "recorded" | null>(null);
+  const [mode, setMode] = useState<"live" | "recorded" | "tracking" | null>(null);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [audioName, setAudioName] = useState<string | null>(null);
   const [audioMimeType, setAudioMimeType] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const startLiveListening = async (trackingEnabled: boolean) => {
+    const deviceId = await getDeviceIdentifier();
+    const session = await createLiveSession(deviceId);
+
+    router.push({
+      pathname: "/SoundTrack/processing",
+      params: {
+        mode: "live",
+        liveSessionId: String(session.id),
+        deviceId,
+        trackingEnabled: trackingEnabled ? "true" : "false",
+      },
+    });
+  };
 
   const pickAudioFile = async () => {
     try {
@@ -55,22 +70,45 @@ export default function ListeningScreen() {
     try {
       setSubmitting(true);
 
-      const deviceId = await getDeviceIdentifier();
-
-      if (mode === "live") {
-        const session = await createLiveSession(deviceId);
-
+      if (mode === "tracking") {
+        const deviceId = await getDeviceIdentifier();
         router.push({
-          pathname: "/SoundTrack/processing",
+          pathname: "/SoundTrack/tracking",
           params: {
-            mode: "live",
-            liveSessionId: String(session.id),
             deviceId,
           },
         });
-
         return;
       }
+
+      if (mode === "live") {
+        Alert.alert(
+          "Enable Tracking Map",
+          "Show the live tracking map while the app is listening and processing?",
+          [
+            {
+              text: "No",
+              onPress: () => {
+                void startLiveListening(false).finally(() => setSubmitting(false));
+              },
+            },
+            {
+              text: "Yes",
+              onPress: () => {
+                void startLiveListening(true).finally(() => setSubmitting(false));
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+              onPress: () => setSubmitting(false),
+            },
+          ],
+        );
+        return;
+      }
+
+      const deviceId = await getDeviceIdentifier();
 
       if (mode === "recorded" && audioUri) {
         const recording = await createRecording(
@@ -94,7 +132,9 @@ export default function ListeningScreen() {
       console.error("Failed to start processing:", error);
       Alert.alert("Error", "Failed to start processing");
     } finally {
-      setSubmitting(false);
+      if (mode !== "live") {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -176,6 +216,39 @@ export default function ListeningScreen() {
             </View>
           )}
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.card, mode === "tracking" && styles.activeCard]}
+          onPress={() => {
+            setMode("tracking");
+            setAudioUri(null);
+            setAudioName(null);
+            setAudioMimeType(null);
+          }}
+          activeOpacity={0.8}
+        >
+          <View style={styles.cardContent}>
+            <View
+              style={[
+                styles.iconBox,
+                mode === "tracking" && styles.activeIconBox,
+              ]}
+            >
+              <Text style={styles.cardIcon}>🗺️</Text>
+            </View>
+            <View style={styles.cardTextContainer}>
+              <Text style={styles.cardTitle}>Tracking Map</Text>
+              <Text style={styles.cardDesc}>
+                Mark your live route path and analyze sound on the move
+              </Text>
+            </View>
+          </View>
+          {mode === "tracking" && (
+            <View style={styles.checkmark}>
+              <Text style={styles.checkmarkText}>✓</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* AUDIO PICKER */}
@@ -221,6 +294,8 @@ export default function ListeningScreen() {
             ? "Please wait..."
             : mode === "live"
               ? "Start Listening"
+              : mode === "tracking"
+                ? "Open Tracking Map"
               : "Process Audio"}
         </Text>
         <Text style={styles.processIcon}>→</Text>

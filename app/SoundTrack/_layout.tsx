@@ -58,6 +58,14 @@ export default function SoundTrackLayout() {
         }}
       />
 
+      <Stack.Screen
+        name="tracking"
+        options={{
+          title: "Live Tracking",
+          headerBackTitle: "Listening",
+        }}
+      />
+
       {/* Analysis Result Screen */}
       <Stack.Screen
         name="analysis-result"

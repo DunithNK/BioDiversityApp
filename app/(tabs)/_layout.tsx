@@ -24,15 +24,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* 🔴 HIDE TAB BAR FOR SOUNTRACK */}
-      <Tabs.Screen
-        name="SoundTrack"
-        options={{
-          title: "SoundTrack",
-          href: null, // 🔥 removes tab button completely
-        }}
-      />
-
       <Tabs.Screen
         name="explore"
         options={{

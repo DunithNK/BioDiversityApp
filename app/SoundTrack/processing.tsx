@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
 import * as Application from "expo-application";
 import {
@@ -27,6 +28,7 @@ import {
   uploadLiveChunk,
 } from "@/services/liveSessions";
 import { getRecording, getRecordingStatus } from "@/services/recordings";
+import { saveTrackedLiveSession, type TrackingPoint } from "@/services/trackingSessions";
 
 const LIVE_RECORD_SECONDS = 8;
 
@@ -40,11 +42,13 @@ const PROCESSING_STEPS = [
 export default function ProcessingScreen() {
   const router = useRouter();
 
-  const { mode, recordingId, liveSessionId, audioName } = useLocalSearchParams<{
+  const { mode, recordingId, liveSessionId, audioName, deviceId, trackingEnabled } = useLocalSearchParams<{
     mode?: string;
     recordingId?: string;
     liveSessionId?: string;
     audioName?: string;
+    deviceId?: string;
+    trackingEnabled?: string;
   }>();
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -56,9 +60,13 @@ export default function ProcessingScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [trackingPath, setTrackingPath] = useState<TrackingPoint[]>([]);
+
+  const isTrackingEnabled = mode === "live" && trackingEnabled === "true";
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const trackingPathRef = useRef<TrackingPoint[]>([]);
   const waveAnims = useRef([
     new Animated.Value(0),
     new Animated.Value(0),
@@ -68,6 +76,10 @@ export default function ProcessingScreen() {
   ]).current;
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  useEffect(() => {
+    trackingPathRef.current = trackingPath;
+  }, [trackingPath]);
 
   useEffect(() => {
     const loadDeviceLabel = async () => {
@@ -137,6 +149,7 @@ export default function ProcessingScreen() {
 
   useEffect(() => {
     let isMounted = true;
+    let locationWatcher: Location.LocationSubscription | null = null;
 
     const sleep = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
@@ -145,6 +158,30 @@ export default function ProcessingScreen() {
     const setSafeProgress = (value: number) => { if (isMounted) setProgress(value); };
     const setSafeBackendStatus = (value: string) => { if (isMounted) setBackendStatus(value); };
     const setSafeStatusHint = (value: string) => { if (isMounted) setStatusHint(value); };
+
+    const appendTrackingPoint = (latitude: number, longitude: number) => {
+      if (!isMounted || !isTrackingEnabled) return;
+
+      const nextPoint = {
+        latitude,
+        longitude,
+        recorded_at: new Date().toISOString(),
+      };
+
+      setTrackingPath((prev) => {
+        const lastPoint = prev[prev.length - 1];
+
+        if (
+          lastPoint &&
+          Math.abs(lastPoint.latitude - nextPoint.latitude) < 0.00001 &&
+          Math.abs(lastPoint.longitude - nextPoint.longitude) < 0.00001
+        ) {
+          return prev;
+        }
+
+        return [...prev, nextPoint];
+      });
+    };
 
     const getPhoneLocation = async () => {
       try {
@@ -164,11 +201,40 @@ export default function ProcessingScreen() {
           longitude: location.coords.longitude,
         };
 
-        if (isMounted) setCapturedLocation(coords);
+        if (isMounted) {
+          setCapturedLocation(coords);
+          appendTrackingPoint(coords.latitude, coords.longitude);
+        }
         return coords;
       } catch (error) {
         console.error("Failed to get location:", error);
         return null;
+      }
+    };
+
+    const startTrackingWatcher = async () => {
+      if (!isTrackingEnabled) return;
+
+      try {
+        locationWatcher = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 2500,
+            distanceInterval: 3,
+          },
+          (location) => {
+            const coords = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            };
+
+            if (!isMounted) return;
+            setCapturedLocation(coords);
+            appendTrackingPoint(coords.latitude, coords.longitude);
+          },
+        );
+      } catch (error) {
+        console.error("Failed to start tracking watcher:", error);
       }
     };
 
@@ -268,6 +334,7 @@ export default function ProcessingScreen() {
 
       setSafeStatusHint("Preparing microphone and GPS");
       const coords = await getPhoneLocation();
+      await startTrackingWatcher();
       const liveAudioUri = await recordChunkFromMicrophone();
 
       if (!isMounted) return;
@@ -332,6 +399,16 @@ export default function ProcessingScreen() {
       await endLiveSession(Number(liveSessionId));
       if (!isMounted) return;
 
+      if (isTrackingEnabled && trackingPathRef.current.length > 0) {
+        await saveTrackedLiveSession({
+          liveSessionId: Number(liveSessionId),
+          deviceId: deviceId ?? null,
+          startedAt: session.started_at,
+          completedAt: new Date().toISOString(),
+          points: trackingPathRef.current,
+        });
+      }
+
       setSafeStep(PROCESSING_STEPS.length);
       setSafeProgress(100);
       setSafeBackendStatus("completed");
@@ -364,8 +441,11 @@ export default function ProcessingScreen() {
 
     runProcessing();
 
-    return () => { isMounted = false; };
-  }, [mode, recordingId, liveSessionId, audioName, recorder, router]);
+    return () => {
+      isMounted = false;
+      locationWatcher?.remove();
+    };
+  }, [audioName, deviceId, isTrackingEnabled, liveSessionId, mode, recorder, recordingId, router]);
 
   return (
     <ScrollView
@@ -381,6 +461,54 @@ export default function ProcessingScreen() {
             {mode === "live" ? "🎙️ Live Recording" : "📁 Uploaded File"}
           </Text>
         </View>
+
+        {isTrackingEnabled ? (
+          <View style={styles.mapCard}>
+            <View style={styles.mapHeader}>
+              <Text style={styles.mapTitle}>Tracking Map</Text>
+              <Text style={styles.mapSubtitle}>
+                Live route marking is active during this listening session
+              </Text>
+            </View>
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={styles.trackingMap}
+              region={
+                capturedLocation
+                  ? {
+                      latitude: capturedLocation.latitude,
+                      longitude: capturedLocation.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }
+                  : {
+                      latitude: 7.19,
+                      longitude: 81.46,
+                      latitudeDelta: 0.08,
+                      longitudeDelta: 0.08,
+                    }
+              }
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+            >
+              {trackingPath.length > 1 ? (
+                <Polyline
+                  coordinates={trackingPath}
+                  strokeColor="#16A34A"
+                  strokeWidth={5}
+                />
+              ) : null}
+              {trackingPath[0] ? (
+                <Marker coordinate={trackingPath[0]} pinColor="#2563EB" />
+              ) : null}
+              {capturedLocation ? (
+                <Marker coordinate={capturedLocation} pinColor="#16A34A" />
+              ) : null}
+            </MapView>
+          </View>
+        ) : null}
 
         {/* Waveform Animation */}
         <View style={styles.animationContainer}>
@@ -514,6 +642,35 @@ const styles = StyleSheet.create({
   header: { alignItems: "center", marginTop: 0 },
   title: { fontSize: 32, color: "#111827", fontWeight: "bold" },
   subtitle: { fontSize: 15, color: "#6B7280", marginTop: 10 },
+  mapCard: {
+    marginTop: 18,
+    marginBottom: 18,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
+  },
+  mapHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+    backgroundColor: "#ECFDF5",
+  },
+  mapTitle: {
+    color: "#14532D",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  mapSubtitle: {
+    color: "#166534",
+    fontSize: 13,
+    marginTop: 4,
+  },
+  trackingMap: {
+    width: "100%",
+    height: 220,
+  },
 
   // Animation
   animationContainer: {
